@@ -157,6 +157,13 @@ def main() -> None:
         required=True,
     )
 
+    parser.add_argument(
+        "--overwrite",
+        help="Do not fail if ZIM already exists, overwrite it",
+        action="store_true",
+        default=False,
+    )
+
     # ZIM configuration flags
     add_zim_config_flags(parser, zim_defaults())
 
@@ -201,6 +208,7 @@ def main() -> None:
             output_folder=Path(args.output_folder),
             zimui_dist=Path(args.zimui_dist),
             content_filter=doc_filter,
+            overwrite_existing_zim=args.overwrite,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

@@ -97,6 +97,8 @@ class Processor:
         content_filter: ContentFilter,
         output_folder: Path,
         zimui_dist: Path,
+        *,
+        overwrite_existing_zim: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -105,12 +107,15 @@ class Processor:
             zim_config: Configuration for ZIM metadata.
             content_filter: User supplied filter selecting with content to convert.
             output_folder: Directory to write ZIMs into.
+            zimui_dist: Build directory where Vite placed compiled Vue.JS frontend.
+            overwrite_existing_zim: Do not fail if ZIM already exists, overwrite it.
         """
         self.libretexts_client = libretexts_client
         self.zim_config = zim_config
         self.doc_filter = content_filter
         self.output_folder = output_folder
         self.zimui_dist = zimui_dist
+        self.overwrite_existing_zim = overwrite_existing_zim
 
         self.output_folder.mkdir(exist_ok=True)
 
@@ -142,7 +147,7 @@ class Processor:
         formatted_config = self.zim_config.format(metadata.placeholders())
         zim_path = Path(self.output_folder, f"{formatted_config.file_name_format}.zim")
 
-        if zim_path.exists():
+        if zim_path.exists() and not self.overwrite_existing_zim:
             logger.error(f"  {zim_path} already exists, aborting.")
             raise SystemExit(2)
 
