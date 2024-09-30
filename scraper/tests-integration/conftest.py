@@ -1,9 +1,20 @@
+import tempfile
+from collections.abc import Generator
+from pathlib import Path
+from typing import Any
+
 import pytest
 
 
 @pytest.fixture(scope="module")
 def libretexts_slug() -> str:
     return "geo"
+
+
+@pytest.fixture(scope="module")
+def cache_folder() -> Generator[Path, Any, Any]:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)
 
 
 @pytest.fixture(scope="module")
