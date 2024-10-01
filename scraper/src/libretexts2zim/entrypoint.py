@@ -126,15 +126,31 @@ def add_content_filter_flags(parser: argparse.ArgumentParser):
     """Adds flags related to content filtering to the given parser."""
 
     parser.add_argument(
-        "--shelves-include",
-        help="Includes only shelves matching the given regular expression.",
+        "--page-title-include",
+        help="Includes only pages with title matching the given regular "
+        "expression, and their parent pages for proper navigation. Can be combined"
+        " with --page-id-include (pages with matching title or id will be included"
+        ")",
         metavar="REGEX",
     )
 
     parser.add_argument(
-        "--shelves-exclude",
-        help="Excludes shelves matching the given regular expression.",
+        "--page-id-include",
+        help="CSV value of page ids to include. Parent pages will be included as "
+        "well for proper navigation. Can be combined with --page-title-include "
+        "(pages with matching title or id will be included)",
+    )
+
+    parser.add_argument(
+        "--page-title-exclude",
+        help="Excludes pages with title matching the given regular expression",
         metavar="REGEX",
+    )
+
+    parser.add_argument(
+        "--root-page-id",
+        help="ID of the root page to include in ZIM. Only this page and its"
+        " subpages will be included in the ZIM",
     )
 
 
@@ -223,7 +239,7 @@ def main(tmpdir: str) -> None:
         doc_filter = ContentFilter.of(args)
 
         cache_folder = tmp_folder / "cache"
-        cache_folder.mkdir()
+        cache_folder.mkdir(exist_ok=True)
 
         libretexts_client = LibreTextsClient(
             library_slug=args.library_slug,

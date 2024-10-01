@@ -24,6 +24,49 @@ class LibreTextsHome(BaseModel):
     welcome_image_url: str
 
 
+class DekiPage(BaseModel):
+    id: str
+    title: str
+    parent: "DekiPage | None" = None
+    children: list["DekiPage"] = []
+
+    def __repr__(self) -> str:
+        return (
+            f"DekiPage(id='{self.id}', title='{self.title}', "
+            f"parent='{'None' if not self.parent else self.parent.id}', "
+            f"children='{','.join([child.id for child in self.children])}')"
+        )
+
+    @property
+    def self_and_parents(self) -> list["DekiPage"]:
+        result: list[DekiPage] = [self]
+        current = self
+        while current.parent is not None:
+            result.append(current.parent)
+            current = current.parent
+        return result
+
+
+class DekiTree(BaseModel):
+    root: DekiPage
+    pages: dict[str, DekiPage] = {}
+
+    def sub_tree(self, subroot_id: str) -> "DekiTree":
+        """Returns a sub-tree, starting at give page id"""
+        new_root = self.pages[subroot_id]
+        tree = DekiTree(root=new_root)
+        tree.pages[new_root.id] = new_root
+        children_to_explore = [*new_root.children]
+        while len(children_to_explore) > 0:
+            child = children_to_explore[0]
+            children_to_explore.remove(child)
+            if child.id in tree.pages:
+                continue  # safe-guard
+            tree.pages[child.id] = child
+            children_to_explore.extend(child.children)
+        return tree
+
+
 class LibreTextsMetadata(BaseModel):
     """Metadata about a library."""
 
@@ -188,6 +231,39 @@ class LibreTextsClient:
 
         tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
         return tree["page"]["@id"]
+
+    def get_page_tree(self) -> DekiTree:
+
+        tree_data = self._get_api_json(
+            "/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS
+        )
+
+        root = DekiPage(id=tree_data["page"]["@id"], title=tree_data["page"]["title"])
+        tree_obj = DekiTree(root=root)
+        tree_obj.pages[root.id] = root
+
+        def _add_page(page_node: Any, parent: DekiPage) -> DekiPage:
+            page = DekiPage(
+                id=page_node["@id"], title=page_node["title"], parent=parent
+            )
+            parent.children.append(page)
+            tree_obj.pages[page.id] = page
+            return page
+
+        def _process_tree_data(page_node: Any, parent: DekiPage) -> None:
+            if not page_node["subpages"]:
+                return
+            if "@id" in page_node["subpages"]["page"]:
+                page = _add_page(page_node["subpages"]["page"], parent=parent)
+                _process_tree_data(page_node["subpages"]["page"], parent=page)
+            else:
+                for subpage_node in page_node["subpages"]["page"]:
+                    page = _add_page(subpage_node, parent=parent)
+                    _process_tree_data(subpage_node, parent=page)
+
+        _process_tree_data(tree_data["page"], parent=root)
+
+        return tree_obj
 
 
 def _get_soup(content: str) -> BeautifulSoup:
