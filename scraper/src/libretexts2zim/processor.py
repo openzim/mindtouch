@@ -14,8 +14,9 @@ from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
 from libretexts2zim.client import (
-    DekiPage,
-    DekiTree,
+    LibraryPage,
+    LibraryPageId,
+    LibraryTree,
     LibreTextsClient,
     LibreTextsMetadata,
 )
@@ -53,7 +54,7 @@ class ContentFilter(BaseModel):
         """Parses a namespace to create a new DocFilter."""
         return ContentFilter.model_validate(namespace, from_attributes=True)
 
-    def filter(self, page_tree: DekiTree) -> list[DekiPage]:
+    def filter(self, page_tree: LibraryTree) -> list[LibraryPage]:
         """Filters pages based on the user's choices."""
 
         if self.root_page_id:
@@ -78,8 +79,8 @@ class ContentFilter(BaseModel):
         def is_selected(
             title_include_re: re.Pattern[str] | None,
             title_exclude_re: re.Pattern[str] | None,
-            id_include: list[str] | None,
-            page: DekiPage,
+            id_include: list[LibraryPageId] | None,
+            page: LibraryPage,
         ) -> bool:
             return (
                 (

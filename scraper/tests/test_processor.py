@@ -1,37 +1,37 @@
 import pytest
 
-from libretexts2zim.client import DekiPage, DekiTree
+from libretexts2zim.client import LibraryPage, LibraryTree
 from libretexts2zim.processor import ContentFilter
 
 
 @pytest.fixture(scope="module")
-def deki_tree() -> DekiTree:
-    root = DekiPage(id="24", title="Home page")
-    topic1 = DekiPage(id="25", title="1: First topic", parent=root)
+def library_tree() -> LibraryTree:
+    root = LibraryPage(id="24", title="Home page")
+    topic1 = LibraryPage(id="25", title="1: First topic", parent=root)
     root.children.append(topic1)
-    topic1_1 = DekiPage(id="26", title="1.1: Cloud", parent=topic1)
+    topic1_1 = LibraryPage(id="26", title="1.1: Cloud", parent=topic1)
     topic1.children.append(topic1_1)
-    topic1_2 = DekiPage(id="27", title="1.2: Tree", parent=topic1)
+    topic1_2 = LibraryPage(id="27", title="1.2: Tree", parent=topic1)
     topic1.children.append(topic1_2)
-    topic1_3 = DekiPage(id="28", title="1.3: Bees", parent=topic1)
+    topic1_3 = LibraryPage(id="28", title="1.3: Bees", parent=topic1)
     topic1.children.append(topic1_3)
-    topic2 = DekiPage(id="29", title="2: Second topic", parent=root)
+    topic2 = LibraryPage(id="29", title="2: Second topic", parent=root)
     root.children.append(topic2)
-    topic2_1 = DekiPage(id="30", title="2.1: Underground", parent=topic2)
+    topic2_1 = LibraryPage(id="30", title="2.1: Underground", parent=topic2)
     topic2.children.append(topic2_1)
-    topic2_2 = DekiPage(id="31", title="2.2: Lava", parent=topic2)
+    topic2_2 = LibraryPage(id="31", title="2.2: Lava", parent=topic2)
     topic2.children.append(topic2_2)
-    topic2_3 = DekiPage(id="32", title="2.3: Volcano", parent=topic2)
+    topic2_3 = LibraryPage(id="32", title="2.3: Volcano", parent=topic2)
     topic2.children.append(topic2_3)
-    topic3 = DekiPage(id="33", title="3: Third topic", parent=root)
+    topic3 = LibraryPage(id="33", title="3: Third topic", parent=root)
     root.children.append(topic3)
-    topic3_1 = DekiPage(id="34", title="3.1: Ground", parent=topic3)
+    topic3_1 = LibraryPage(id="34", title="3.1: Ground", parent=topic3)
     topic3.children.append(topic3_1)
-    topic3_2 = DekiPage(id="35", title="3.2: Earth", parent=topic3)
+    topic3_2 = LibraryPage(id="35", title="3.2: Earth", parent=topic3)
     topic3.children.append(topic3_2)
-    topic3_3 = DekiPage(id="36", title="3.3: Sky", parent=topic3)
+    topic3_3 = LibraryPage(id="36", title="3.3: Sky", parent=topic3)
     topic3.children.append(topic3_3)
-    return DekiTree(
+    return LibraryTree(
         root=root,
         pages={
             root.id: root,
@@ -177,6 +177,6 @@ def deki_tree() -> DekiTree:
     ],
 )
 def test_content_filter(
-    content_filter: ContentFilter, expected_ids: list[str], deki_tree: DekiTree
+    content_filter: ContentFilter, expected_ids: list[str], library_tree: LibraryTree
 ):
-    assert [page.id for page in content_filter.filter(deki_tree)] == expected_ids
+    assert [page.id for page in content_filter.filter(library_tree)] == expected_ids

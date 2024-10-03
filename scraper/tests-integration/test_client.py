@@ -7,7 +7,12 @@ from zimscraperlib.download import (
 )
 from zimscraperlib.image.probing import format_for
 
-from libretexts2zim.client import DekiTree, LibreTextsClient, LibreTextsHome
+from libretexts2zim.client import (
+    LibraryPageId,
+    LibraryTree,
+    LibreTextsClient,
+    LibreTextsHome,
+)
 
 
 @pytest.fixture(scope="module")
@@ -31,7 +36,7 @@ def minimum_number_of_pages() -> int:
 
 
 @pytest.fixture(scope="module")
-def root_page_id() -> str:
+def root_page_id() -> LibraryPageId:
     return "34"
 
 
@@ -44,7 +49,7 @@ def nb_root_children() -> int:
 def page_tree(
     client: LibreTextsClient,
     deki_token: str,  # noqa: ARG001
-) -> DekiTree:
+) -> LibraryTree:
     return client.get_page_tree()
 
 
@@ -64,21 +69,21 @@ def test_get_all_pages_ids(
 
 def test_get_root_page_id(
     client: LibreTextsClient,
-    root_page_id: str,
+    root_page_id: LibraryPageId,
     deki_token: str,  # noqa: ARG001
 ):
     assert client.get_root_page_id() == root_page_id
 
 
 def test_get_page_tree_pages(
-    page_tree: DekiTree,
+    page_tree: LibraryTree,
     minimum_number_of_pages: int,
 ):
     assert len(page_tree.pages.keys()) > minimum_number_of_pages
 
 
 def test_get_page_tree_root(
-    page_tree: DekiTree,
+    page_tree: LibraryTree,
     root_page_id: str,
     nb_root_children: int,
 ):
@@ -90,7 +95,7 @@ def test_get_page_tree_root(
 
 
 def test_get_page_tree_subtree(
-    page_tree: DekiTree,
+    page_tree: LibraryTree,
 ):
 
     # 28207 = https://geo.libretexts.org/Courses/Coastline_College/An_Introduction_To_Geology_-_Coastline_College/01%3A_Understanding_Science

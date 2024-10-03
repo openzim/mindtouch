@@ -128,17 +128,18 @@ def add_content_filter_flags(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--page-title-include",
         help="Includes only pages with title matching the given regular "
-        "expression, and their parent pages for proper navigation. Can be combined"
-        " with --page-id-include (pages with matching title or id will be included"
-        ")",
+        "expression, and their parent pages for proper navigation, up to root (or "
+        "subroot if --root-page-id is set). Can be combined with --page-id-include "
+        "(pages with matching title or id will be included)",
         metavar="REGEX",
     )
 
     parser.add_argument(
         "--page-id-include",
-        help="CSV value of page ids to include. Parent pages will be included as "
-        "well for proper navigation. Can be combined with --page-title-include "
-        "(pages with matching title or id will be included)",
+        help="CSV of page ids to include. Parent pages will be included as "
+        "well for proper navigation, up to root (or subroot if --root-page-id is set). "
+        "Can be combined with --page-title-include (pages with matching title or id "
+        "will be included)",
     )
 
     parser.add_argument(
