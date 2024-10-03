@@ -47,7 +47,6 @@ dev = [
 
 [project.scripts]
 libretexts2zim = "libretexts2zim.__main__:main"
-libretexts2zim-playlists = "libretexts2zim.playlists.__main__:main"
 
 [tool.hatch.version]
 path = "src/libretexts2zim/__about__.py"

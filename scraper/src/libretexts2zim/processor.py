@@ -9,6 +9,7 @@ from zimscraperlib.download import (
 )
 from zimscraperlib.image import resize_image
 from zimscraperlib.zim import Creator
+from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
 from libretexts2zim.client import LibreTextsClient, LibreTextsMetadata
@@ -117,8 +118,6 @@ class Processor:
         self.zimui_dist = zimui_dist
         self.overwrite_existing_zim = overwrite_existing_zim
 
-        self.output_folder.mkdir(exist_ok=True)
-
         self.zim_illustration_path = self.libretexts_newsite_path(
             "header_logo_mini.png"
         )
@@ -145,11 +144,17 @@ class Processor:
             name=self.zim_config.library_name, slug=self.libretexts_client.library_slug
         )
         formatted_config = self.zim_config.format(metadata.placeholders())
-        zim_path = Path(self.output_folder, f"{formatted_config.file_name_format}.zim")
+        zim_file_name = f"{formatted_config.file_name_format}.zim"
+        zim_path = self.output_folder / zim_file_name
 
-        if zim_path.exists() and not self.overwrite_existing_zim:
-            logger.error(f"  {zim_path} already exists, aborting.")
-            raise SystemExit(2)
+        if zim_path.exists():
+            if self.overwrite_existing_zim:
+                zim_path.unlink()
+            else:
+                logger.error(f"  {zim_path} already exists, aborting.")
+                raise SystemExit(2)
+
+        validate_zimfile_creatable(self.output_folder, zim_file_name)
 
         logger.info(f"  Writing to: {zim_path}")
 

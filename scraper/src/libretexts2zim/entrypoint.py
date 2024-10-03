@@ -8,6 +8,7 @@ from zimscraperlib.constants import (
     MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH,
     RECOMMENDED_MAX_TITLE_LENGTH,
 )
+from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 
 from libretexts2zim.client import LibreTextsClient
 from libretexts2zim.constants import (
@@ -137,7 +138,7 @@ def add_content_filter_flags(parser: argparse.ArgumentParser):
     )
 
 
-def main() -> None:
+def main(tmpdir: str) -> None:
     parser = argparse.ArgumentParser(
         prog=NAME,
     )
@@ -178,6 +179,13 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--tmp",
+        help="Temporary folder for cache, intermediate files, ... Default: tmp",
+        default=os.getenv("LIBRETEXTS_TMP", tmpdir),
+        dest="tmp_folder",
+    )
+
+    parser.add_argument(
         "--debug", help="Enable verbose output", action="store_true", default=False
     )
 
@@ -191,15 +199,35 @@ def main() -> None:
         default=os.getenv("LIBRETEXTS_ZIMUI_DIST", "../zimui/dist"),
     )
 
+    parser.add_argument(
+        "--keep-cache",
+        help="Keep cache of website responses",
+        action="store_true",
+        default=False,
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
 
+    output_folder = Path(args.output_folder)
+    output_folder.mkdir(exist_ok=True)
+    validate_zimfile_creatable(output_folder, "test.txt")
+
+    tmp_folder = Path(args.tmp_folder)
+    tmp_folder.mkdir(exist_ok=True)
+    validate_zimfile_creatable(tmp_folder, "test.txt")
+
     try:
         zim_config = ZimConfig.of(args)
         doc_filter = ContentFilter.of(args)
+
+        cache_folder = tmp_folder / "cache"
+        cache_folder.mkdir()
+
         libretexts_client = LibreTextsClient(
             library_slug=args.library_slug,
+            cache_folder=cache_folder,
         )
 
         Processor(
@@ -217,7 +245,3 @@ def main() -> None:
         logger.exception(exc)
         logger.error(f"Generation failed with the following error: {exc}")
         raise SystemExit(1) from exc
-
-
-if __name__ == "__main__":
-    main()

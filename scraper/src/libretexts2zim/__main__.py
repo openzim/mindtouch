@@ -1,9 +1,12 @@
-#!/usr/bin/env python3
-# vim: ai ts=4 sts=4 et sw=4 nu
+import tempfile
 
-import sys
+from libretexts2zim.entrypoint import main as entrypoint
 
-from libretexts2zim.entrypoint import main
+
+def main():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        entrypoint(tmpdir)
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
