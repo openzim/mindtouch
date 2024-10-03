@@ -32,12 +32,13 @@ class LibraryPage(BaseModel):
 
     id: LibraryPageId
     title: str
+    path: str
     parent: "LibraryPage | None" = None
     children: list["LibraryPage"] = []
 
     def __repr__(self) -> str:
         return (
-            f"WikiPage(id='{self.id}', title='{self.title}', "
+            f"WikiPage(id='{self.id}', title='{self.title}', path='{self.path}' "
             f"parent='{'None' if not self.parent else self.parent.id}', "
             f"children='{','.join([child.id for child in self.children])}')"
         )
@@ -50,6 +51,12 @@ class LibraryPage(BaseModel):
             result.append(current.parent)
             current = current.parent
         return result
+
+
+class LibraryPageContent(BaseModel):
+    """Content of a given library page"""
+
+    html_body: str
 
 
 class LibraryTree(BaseModel):
@@ -246,14 +253,19 @@ class LibreTextsClient:
         )
 
         root = LibraryPage(
-            id=tree_data["page"]["@id"], title=tree_data["page"]["title"]
+            id=tree_data["page"]["@id"],
+            title=tree_data["page"]["title"],
+            path=tree_data["page"]["path"]["#text"],
         )
         tree_obj = LibraryTree(root=root)
         tree_obj.pages[root.id] = root
 
         def _add_page(page_node: Any, parent: LibraryPage) -> LibraryPage:
             page = LibraryPage(
-                id=page_node["@id"], title=page_node["title"], parent=parent
+                id=page_node["@id"],
+                title=page_node["title"],
+                path=page_node["path"]["#text"],
+                parent=parent,
             )
             parent.children.append(page)
             tree_obj.pages[page.id] = page
@@ -273,6 +285,33 @@ class LibreTextsClient:
         _process_tree_data(tree_data["page"], parent=root)
 
         return tree_obj
+
+    def get_page_content(self, page: LibraryPage) -> LibraryPageContent:
+        """Returns the content of a given page"""
+
+        tree = self._get_api_json(
+            f"/pages/{page.id}/contents", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
+        )
+        if not isinstance(tree["body"][0], str):
+            raise LibreTextsParsingError(
+                f"First body element of /pages/{page.id}/contents is not a string"
+            )
+        if not isinstance(tree["body"][1], dict):
+            raise LibreTextsParsingError(
+                f"Second body element of /pages/{page.id}/contents is not a dict"
+            )
+        if "@target" not in tree["body"][1]:
+            raise LibreTextsParsingError(
+                f"Unexpected second body element of /pages/{page.id}/contents, "
+                "no @target property"
+            )
+        if tree["body"][1]["@target"] != "toc":
+            raise LibreTextsParsingError(
+                f"Unexpected second body element of /pages/{page.id}/contents, "
+                f"@target property is '{tree["body"][1]["@target"]}' while only 'toc' "
+                "is expected"
+            )
+        return LibraryPageContent(html_body=tree["body"][0])
 
 
 def _get_soup(content: str) -> BeautifulSoup:

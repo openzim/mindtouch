@@ -8,12 +8,20 @@ class CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=camelize, populate_by_name=True)
 
 
-class HomeModel(CamelModel):
-    welcome_text_paragraphs: list[str]
+class PageModel(CamelModel):
+    id: str
+    title: str
+    path: str
+
+
+class PageContentModel(CamelModel):
+    html_body: str
 
 
 class SharedModel(CamelModel):
     logo_path: str
+    root_page_path: str
+    pages: list[PageModel]
 
 
 class ConfigModel(CamelModel):

@@ -21,7 +21,12 @@ from libretexts2zim.client import (
     LibreTextsMetadata,
 )
 from libretexts2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
-from libretexts2zim.ui import ConfigModel, HomeModel, SharedModel
+from libretexts2zim.ui import (
+    ConfigModel,
+    PageContentModel,
+    PageModel,
+    SharedModel,
+)
 from libretexts2zim.zimconfig import ZimConfig
 
 
@@ -260,20 +265,6 @@ class Processor:
             stream_file(home.welcome_image_url, byte_stream=welcome_image)
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
-            add_item_for(
-                creator,
-                "content/shared.json",
-                content=SharedModel(logo_path="content/logo.png").model_dump_json(
-                    by_alias=True
-                ),
-            )
-            add_item_for(
-                creator,
-                "content/home.json",
-                content=HomeModel(
-                    welcome_text_paragraphs=home.welcome_text_paragraphs
-                ).model_dump_json(by_alias=True),
-            )
 
             logger.info(f"Adding Vue.JS UI files in {self.zimui_dist}")
             for file in self.zimui_dist.rglob("*"):
@@ -287,7 +278,8 @@ class Processor:
                         creator=creator,
                         path=path,
                         content=index_html_path.read_text(encoding="utf-8").replace(
-                            "<title>Vite App</title>", formatted_config.title_format
+                            "<title>Vite App</title>",
+                            f"<title>{formatted_config.title_format}</title>",
                         ),
                         mimetype="text/html",
                         is_front=True,
@@ -307,5 +299,29 @@ class Processor:
                 f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "
                 "fetched and pushed to the ZIM"
             )
+            add_item_for(
+                creator,
+                "content/shared.json",
+                content=SharedModel(
+                    logo_path="content/logo.png",
+                    root_page_path=selected_pages[0].path,  # root is always first
+                    pages=[
+                        PageModel(id=page.id, title=page.title, path=page.path)
+                        for page in selected_pages
+                    ],
+                ).model_dump_json(by_alias=True),
+            )
+
+            logger.info("Fetching pages content")
+            for page in selected_pages:
+                logger.debug(f"  Fetching {page.id}")
+                page_content = self.libretexts_client.get_page_content(page)
+                add_item_for(
+                    creator,
+                    f"content/page_content_{page.id}.json",
+                    content=PageContentModel(
+                        html_body=page_content.html_body
+                    ).model_dump_json(by_alias=True),
+                )
 
         return zim_path
