@@ -138,7 +138,7 @@ def add_content_filter_flags(parser: argparse.ArgumentParser):
     )
 
 
-def main() -> None:
+def main(tmpdir: str) -> None:
     parser = argparse.ArgumentParser(
         prog=NAME,
     )
@@ -181,7 +181,7 @@ def main() -> None:
     parser.add_argument(
         "--tmp",
         help="Temporary folder for cache, intermediate files, ... Default: tmp",
-        default=os.getenv("LIBRETEXTS_TMP", "tmp"),
+        default=os.getenv("LIBRETEXTS_TMP", tmpdir),
         dest="tmp_folder",
     )
 
@@ -245,7 +245,3 @@ def main() -> None:
         logger.exception(exc)
         logger.error(f"Generation failed with the following error: {exc}")
         raise SystemExit(1) from exc
-
-
-if __name__ == "__main__":
-    main()

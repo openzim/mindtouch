@@ -11,7 +11,8 @@ from pydantic import BaseModel
 
 from libretexts2zim.constants import logger
 
-HTTP_TIMEOUT_SECONDS = 15
+HTTP_TIMEOUT_NORMAL_SECONDS = 15
+HTTP_TIMEOUT_LONG_SECONDS = 30
 
 
 class LibreTextsParsingError(Exception):
@@ -74,8 +75,7 @@ class LibreTextsClient:
 
     def _get_cache_file(self, url_subpath_and_query: str) -> Path:
         """Get location where HTTP result should be cached"""
-        if url_subpath_and_query.startswith("/"):
-            url_subpath_and_query = url_subpath_and_query[1:]
+        url_subpath_and_query = re.sub(r"^/", "", url_subpath_and_query)
         if url_subpath_and_query.endswith("/"):
             url_subpath_and_query += "index"
         return self.cache_folder / url_subpath_and_query
@@ -94,7 +94,7 @@ class LibreTextsClient:
         resp = requests.get(
             url=full_url,
             allow_redirects=True,
-            timeout=HTTP_TIMEOUT_SECONDS,
+            timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
         )
         resp.raise_for_status()
 
@@ -115,7 +115,7 @@ class LibreTextsClient:
         return resp
 
     def _get_api_json(
-        self, api_sub_path: str, timeout: float = HTTP_TIMEOUT_SECONDS
+        self, api_sub_path: str, timeout: float = HTTP_TIMEOUT_NORMAL_SECONDS
     ) -> Any:
         cache_file = self._get_cache_file(f"api_json{api_sub_path}")
         if cache_file.exists():
@@ -129,11 +129,11 @@ class LibreTextsClient:
         return result
 
     def _get_api_content(
-        self, api_sub_path: str, timeout: float = HTTP_TIMEOUT_SECONDS
+        self, api_sub_path: str, timeout: float = HTTP_TIMEOUT_NORMAL_SECONDS
     ) -> bytes | Any:
         cache_file = self._get_cache_file(f"api_content{api_sub_path}")
         if cache_file.exists():
-            return json.loads(cache_file.read_text())
+            return cache_file.read_bytes()
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         resp = self._get_api_resp(api_sub_path, timeout=timeout)
         result = resp.content
@@ -165,7 +165,7 @@ class LibreTextsClient:
     def get_all_pages_ids(self):
         """Returns the IDs of all pages on current website, exploring the whole tree"""
 
-        tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_SECONDS * 2)
+        tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
 
         page_ids: list[str] = []
 
@@ -186,7 +186,7 @@ class LibreTextsClient:
     def get_root_page_id(self) -> str:
         """Returns the ID the root of the tree of pages"""
 
-        tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_SECONDS * 2)
+        tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
         return tree["page"]["@id"]
 
 
@@ -196,6 +196,7 @@ def _get_soup(content: str) -> BeautifulSoup:
     This is a utility function to ensure same parser is used in the whole codebase
     """
     return BeautifulSoup(content, "lxml")
+
 
 def _get_welcome_image_url_from_home(soup: BeautifulSoup) -> str:
     """Return the URL of the image found on home header"""

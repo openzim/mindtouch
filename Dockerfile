@@ -44,6 +44,8 @@ RUN pip install --no-cache-dir /src/scraper \
 # Copy zimui build output
 COPY --from=zimui /src/dist /src/zimui
 
-ENV LIBRETEXTS_ZIMUI_DIST=/src/zimui LIBRETEXTS_OUTPUT=/output LIBRETEXTS_TMP=/tmp
+ENV LIBRETEXTS_ZIMUI_DIST=/src/zimui \
+    LIBRETEXTS_OUTPUT=/output \
+    LIBRETEXTS_TMP=/tmp
 
 CMD ["libretexts2zim", "--help"]
