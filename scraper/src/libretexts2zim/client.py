@@ -24,6 +24,56 @@ class LibreTextsHome(BaseModel):
     welcome_image_url: str
 
 
+LibraryPageId = str
+
+
+class LibraryPage(BaseModel):
+    """Class holding information about a given library page on the library tree"""
+
+    id: LibraryPageId
+    title: str
+    parent: "LibraryPage | None" = None
+    children: list["LibraryPage"] = []
+
+    def __repr__(self) -> str:
+        return (
+            f"WikiPage(id='{self.id}', title='{self.title}', "
+            f"parent='{'None' if not self.parent else self.parent.id}', "
+            f"children='{','.join([child.id for child in self.children])}')"
+        )
+
+    @property
+    def self_and_parents(self) -> list["LibraryPage"]:
+        result: list[LibraryPage] = [self]
+        current = self
+        while current.parent is not None:
+            result.append(current.parent)
+            current = current.parent
+        return result
+
+
+class LibraryTree(BaseModel):
+    """Class holding information about the tree of pages on a given library"""
+
+    root: LibraryPage
+    pages: dict[LibraryPageId, LibraryPage] = {}
+
+    def sub_tree(self, subroot_id: LibraryPageId) -> "LibraryTree":
+        """Returns a sub-tree, starting at give page id"""
+        new_root = self.pages[subroot_id]
+        tree = LibraryTree(root=new_root)
+        tree.pages[new_root.id] = new_root
+        children_to_explore = [*new_root.children]
+        while len(children_to_explore) > 0:
+            child = children_to_explore[0]
+            children_to_explore.remove(child)
+            if child.id in tree.pages:
+                continue  # safe-guard
+            tree.pages[child.id] = child
+            children_to_explore.extend(child.children)
+        return tree
+
+
 class LibreTextsMetadata(BaseModel):
     """Metadata about a library."""
 
@@ -162,12 +212,12 @@ class LibreTextsClient:
         self.deki_token = _get_deki_token_from_home(soup)
         return self.deki_token
 
-    def get_all_pages_ids(self):
+    def get_all_pages_ids(self) -> list[LibraryPageId]:
         """Returns the IDs of all pages on current website, exploring the whole tree"""
 
         tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
 
-        page_ids: list[str] = []
+        page_ids: list[LibraryPageId] = []
 
         def _get_page_ids(page_node: Any) -> None:
             page_ids.append(page_node["@id"])
@@ -183,11 +233,46 @@ class LibreTextsClient:
 
         return page_ids
 
-    def get_root_page_id(self) -> str:
+    def get_root_page_id(self) -> LibraryPageId:
         """Returns the ID the root of the tree of pages"""
 
         tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
         return tree["page"]["@id"]
+
+    def get_page_tree(self) -> LibraryTree:
+
+        tree_data = self._get_api_json(
+            "/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS
+        )
+
+        root = LibraryPage(
+            id=tree_data["page"]["@id"], title=tree_data["page"]["title"]
+        )
+        tree_obj = LibraryTree(root=root)
+        tree_obj.pages[root.id] = root
+
+        def _add_page(page_node: Any, parent: LibraryPage) -> LibraryPage:
+            page = LibraryPage(
+                id=page_node["@id"], title=page_node["title"], parent=parent
+            )
+            parent.children.append(page)
+            tree_obj.pages[page.id] = page
+            return page
+
+        def _process_tree_data(page_node: Any, parent: LibraryPage) -> None:
+            if not page_node["subpages"]:
+                return
+            if "@id" in page_node["subpages"]["page"]:
+                page = _add_page(page_node["subpages"]["page"], parent=parent)
+                _process_tree_data(page_node["subpages"]["page"], parent=page)
+            else:
+                for subpage_node in page_node["subpages"]["page"]:
+                    page = _add_page(subpage_node, parent=parent)
+                    _process_tree_data(subpage_node, parent=page)
+
+        _process_tree_data(tree_data["page"], parent=root)
+
+        return tree_obj
 
 
 def _get_soup(content: str) -> BeautifulSoup:

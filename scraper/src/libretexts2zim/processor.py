@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import re
 from io import BytesIO
 from pathlib import Path
 
@@ -12,7 +13,13 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
-from libretexts2zim.client import LibreTextsClient, LibreTextsMetadata
+from libretexts2zim.client import (
+    LibraryPage,
+    LibraryPageId,
+    LibraryTree,
+    LibreTextsClient,
+    LibreTextsMetadata,
+)
 from libretexts2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
 from libretexts2zim.ui import ConfigModel, HomeModel, SharedModel
 from libretexts2zim.zimconfig import ZimConfig
@@ -33,23 +40,69 @@ class MissingDocumentError(Exception):
 class ContentFilter(BaseModel):
     """Supports filtering documents by user provided attributes."""
 
-    # If specified, only shelves matching the regex are included.
-    shelves_include: str | None
-    # If specified, shelves matching the regex are excluded.
-    shelves_exclude: str | None
+    # If specified, only pages with title matching the regex are included.
+    page_title_include: str | None
+    # If specified, only page with matching ids are included.
+    page_id_include: str | None
+    # If specified, page with title matching the regex are excluded.
+    page_title_exclude: str | None
+    # If specified, only this page and its subpages will be included.
+    root_page_id: str | None
 
     @staticmethod
     def of(namespace: argparse.Namespace) -> "ContentFilter":
         """Parses a namespace to create a new DocFilter."""
         return ContentFilter.model_validate(namespace, from_attributes=True)
 
-    # TODO: implement filtering of shelves based on configured regex
-    # def filter(self, shelves: list[LibretextsShelve]) -> list[LibretextsShelve]:
-    #     """Filters docs based on the user's choices."""
-    #     selected: list[LibretextsShelve] = []
-    #     for shelve in shelves:
-    #       ....
-    #     return selected
+    def filter(self, page_tree: LibraryTree) -> list[LibraryPage]:
+        """Filters pages based on the user's choices."""
+
+        if self.root_page_id:
+            page_tree = page_tree.sub_tree(self.root_page_id)
+
+        title_include_re = (
+            re.compile(self.page_title_include, re.IGNORECASE)
+            if self.page_title_include
+            else None
+        )
+        title_exclude_re = (
+            re.compile(self.page_title_exclude, re.IGNORECASE)
+            if self.page_title_exclude
+            else None
+        )
+        id_include = (
+            [page_id.strip() for page_id in self.page_id_include.split(",")]
+            if self.page_id_include
+            else None
+        )
+
+        def is_selected(
+            title_include_re: re.Pattern[str] | None,
+            title_exclude_re: re.Pattern[str] | None,
+            id_include: list[LibraryPageId] | None,
+            page: LibraryPage,
+        ) -> bool:
+            return (
+                (
+                    not title_include_re
+                    or title_include_re.search(page.title) is not None
+                )
+                and (not id_include or page.id in id_include)
+                and (
+                    not title_exclude_re or title_exclude_re.search(page.title) is None
+                )
+            )
+
+        # Find selected pages and their parent, and create a set of unique ids
+        selected_ids = {
+            selected_page.id
+            for page in page_tree.pages.values()
+            for selected_page in page.self_and_parents
+            if is_selected(title_include_re, title_exclude_re, id_include, page)
+        }
+
+        # Then transform set of ids into list of pages
+        return [page for page in page_tree.pages.values() if page.id in selected_ids]
 
 
 def add_item_for(
@@ -113,7 +166,7 @@ class Processor:
         """
         self.libretexts_client = libretexts_client
         self.zim_config = zim_config
-        self.doc_filter = content_filter
+        self.content_filter = content_filter
         self.output_folder = output_folder
         self.zimui_dist = zimui_dist
         self.overwrite_existing_zim = overwrite_existing_zim
@@ -222,7 +275,7 @@ class Processor:
                 ).model_dump_json(by_alias=True),
             )
 
-            logger.info(f"Adding files in {self.zimui_dist}")
+            logger.info(f"Adding Vue.JS UI files in {self.zimui_dist}")
             for file in self.zimui_dist.rglob("*"):
                 if file.is_dir():
                     continue
@@ -246,5 +299,13 @@ class Processor:
                         fpath=file,
                         is_front=False,
                     )
+
+            logger.info("Fetching pages tree")
+            pages_tree = self.libretexts_client.get_page_tree()
+            selected_pages = self.content_filter.filter(pages_tree)
+            logger.info(
+                f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "
+                "fetched and pushed to the ZIM"
+            )
 
         return zim_path
