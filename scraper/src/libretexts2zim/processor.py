@@ -286,6 +286,12 @@ class Processor:
             add_item_for(creator, "content/print.css", content=result)
             del print_css
 
+            result = css_processor.process(
+                css_original_url=home.home_url,
+                css_content=("\n".join(home.inline_css)).encode(),
+            )
+            add_item_for(creator, "content/inline.css", content=result)
+
             logger.info(f"  Retrieving {len(css_processor.css_assets)} CSS assets...")
             for asset_url, asset_path in css_processor.css_assets.items():
                 try:

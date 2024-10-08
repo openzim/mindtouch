@@ -20,10 +20,12 @@ class LibreTextsParsingError(Exception):
 
 
 class LibreTextsHome(BaseModel):
+    home_url: str
     welcome_text_paragraphs: list[str]
     welcome_image_url: str
     screen_css_url: str
     print_css_url: str
+    inline_css: list[str]
 
 
 LibraryPageId = str
@@ -210,6 +212,8 @@ class LibreTextsClient:
             welcome_image_url=_get_welcome_image_url_from_home(soup),
             screen_css_url=_get_screen_css_url_from_home(soup),
             print_css_url=_get_print_css_url_from_home(soup),
+            inline_css=_get_inline_css_from_home(soup),
+            home_url=f"{self.library_url}/",
         )
 
     def get_deki_token(self) -> str:
@@ -405,3 +409,9 @@ def _get_screen_css_url_from_home(soup: BeautifulSoup) -> str:
 def _get_print_css_url_from_home(soup: BeautifulSoup) -> str:
     """Returns the URL of print CSS found on home page"""
     return _get_any_css_url_from_home(soup, "print")
+
+
+def _get_inline_css_from_home(soup: BeautifulSoup) -> list[str]:
+    """Returns inline CSS code found on home page"""
+    links = soup.find_all("style", {"type": "text/css"})
+    return [link.text for link in links if link.text]

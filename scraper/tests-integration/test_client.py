@@ -150,3 +150,13 @@ def test_get_home_print_css_url(home: LibreTextsHome):
         home.print_css_url
         == "https://a.mtstatic.com/@cache/layout/print.css?_=99d83fb44eaebe60981933ec554d138d:site_4038"
     )
+
+
+def test_get_home_inline_css(home: LibreTextsHome):
+    """Ensures proper print CSS url is retrieved"""
+    assert len(home.inline_css) >= 10  # 13 expected as of Oct. 2024
+    assert len("\n".join(home.inline_css)) >= 35000  # 39843 expected as of Oct. 2024
+
+
+def test_get_home_url(home: LibreTextsHome, libretexts_url: str):
+    assert home.home_url == f"{libretexts_url}/"
