@@ -1,1 +1,11 @@
-{ "logoPath": "content/logo.png" }
+{
+  "logoPath": "content/logo.png",
+  "rootPagePath": "a_folder/a_page",
+  "pages": [
+    {
+      "id": "123",
+      "title": "A page title",
+      "path": "a_folder/a_page"
+    }
+  ]
+}

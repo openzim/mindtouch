@@ -1,21 +1,49 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { watch, ref } from 'vue'
 
-import { useHomeStore } from '@/stores/home'
+import { useMainStore } from '@/stores/main'
+import { useRoute } from 'vue-router'
+import type { SharedPage } from '@/types/shared'
 
-// Fetch the home data
-const home = useHomeStore()
-onMounted(async () => {
-  try {
-    await home.fetchHome()
-  } catch (error) {
-    home.setErrorMessage('An unexpected error occured.')
+const main = useMainStore()
+
+const route = useRoute()
+
+const getPage = function () {
+  if (main.shared === null) {
+    return null
   }
-})
+  let path = route.params.pathMatch
+  if (Array.isArray(path)) {
+    if (path.length != 1) {
+      console.error('Improper path length: ' + path)
+      return null
+    }
+    path = path[0]
+  }
+  if (path == '') {
+    path = main.shared.rootPagePath
+  }
+  const page = main.pagesByPath[path] || null
+  if (page) {
+    main.fetchPageContent(page)
+  }
+  return page
+}
+
+const page = ref<SharedPage | null>(getPage())
+
+watch(
+  () => (main.shared ? route.params.pathMatch : undefined),
+  () => {
+    page.value = getPage()
+  }
+)
 </script>
 
 <template>
   <v-container>
-    <p v-for="paragraph in home.home?.welcomeTextParagraphs" :key="paragraph">{{ paragraph }}</p>
+    <div v-if="main.pageContent" v-html="main.pageContent.htmlBody"></div>
+    <div v-else>Page not found</div>
   </v-container>
 </template>

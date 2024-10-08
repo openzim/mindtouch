@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import axios, { AxiosError } from 'axios'
-import type { Shared } from '@/types/shared'
+import type { PageContent, Shared, SharedPage } from '@/types/shared'
 
 export type RootState = {
   shared: Shared | null
+  pagesByPath: { [key: string]: SharedPage }
+  pageContent: PageContent | null
   isLoading: boolean
   errorMessage: string
   errorDetails: string
@@ -13,6 +15,8 @@ export const useMainStore = defineStore('main', {
   state: () =>
     ({
       shared: null,
+      pagesByPath: {},
+      pageContent: null,
       isLoading: false,
       errorMessage: '',
       errorDetails: ''
@@ -28,11 +32,35 @@ export const useMainStore = defineStore('main', {
         (response) => {
           this.isLoading = false
           this.shared = response.data as Shared
+          this.pagesByPath = {}
+          this.shared.pages.forEach((page: SharedPage) => {
+            this.pagesByPath[page.path] = page
+          })
         },
         (error) => {
           this.isLoading = false
           this.shared = null
           this.errorMessage = 'Failed to load shared data.'
+          if (error instanceof AxiosError) {
+            this.handleAxiosError(error)
+          }
+        }
+      )
+    },
+    async fetchPageContent(page: SharedPage) {
+      this.isLoading = true
+      this.errorMessage = ''
+      this.errorDetails = ''
+
+      return axios.get(`./content/page_content_${page.id}.json`).then(
+        (response) => {
+          this.isLoading = false
+          this.pageContent = response.data as PageContent
+        },
+        (error) => {
+          this.isLoading = false
+          this.shared = null
+          this.errorMessage = `Failed to load page content for page ${page.id}`
           if (error instanceof AxiosError) {
             this.handleAxiosError(error)
           }

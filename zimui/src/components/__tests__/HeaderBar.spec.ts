@@ -33,7 +33,7 @@ describe('HeaderBar', () => {
       })
       const main = useMainStore()
       const logoPath = 'content/logo.png'
-      main.shared = { logoPath: logoPath }
+      main.shared = { logoPath: logoPath, rootPagePath: '', pages: [] }
 
       const wrapper = mount(HeaderBar, {
         global: {

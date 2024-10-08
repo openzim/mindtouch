@@ -129,3 +129,8 @@ def test_get_home_welcome_text_paragraphs(
     """Ensures proper data is retrieved from home of libretexts"""
 
     assert home.welcome_text_paragraphs == home_welcome_text_paragraphs
+
+
+def test_get_home_page_content(client: LibreTextsClient, page_tree: LibraryTree):
+    """Ensures we can get content of root page"""
+    assert client.get_page_content(page_tree.root).html_body

@@ -56,26 +56,22 @@ def test_zim_content_logo_png(zim_fh: Archive, home_png_size: int):
     assert len(logo_png.content) == home_png_size  # pyright: ignore
 
 
-def test_zim_content_home_json(
-    zim_fh: Archive, home_welcome_text_paragraphs: list[str]
-):
-    """Ensure proper content at content/home.json"""
-
-    home_json = zim_fh.get_item("content/home.json")
-    assert home_json.mimetype == "application/json"  # pyright: ignore
-    assert json.loads(bytes(home_json.content)) == {  # pyright: ignore
-        "welcomeTextParagraphs": home_welcome_text_paragraphs
-    }
-
-
 def test_zim_content_shared_json(zim_fh: Archive):
     """Ensure proper content at content/shared.json"""
 
     shared_json = zim_fh.get_item("content/shared.json")
     assert shared_json.mimetype == "application/json"  # pyright: ignore
-    assert json.loads(bytes(shared_json.content)) == {  # pyright: ignore
-        "logoPath": "content/logo.png"
-    }
+    shared_content = json.loads(bytes(shared_json.content))  # pyright: ignore
+    shared_content_keys = shared_content.keys()
+    assert "logoPath" in shared_content_keys
+    assert "rootPagePath" in shared_content_keys
+    assert "pages" in shared_content_keys
+    assert len(shared_content["pages"]) == 4
+    for page in shared_content["pages"]:
+        shared_content_page_keys = page.keys()
+        assert "id" in shared_content_page_keys
+        assert "title" in shared_content_page_keys
+        assert "path" in shared_content_page_keys
 
 
 def test_zim_content_config_json(zim_fh: Archive):
@@ -86,3 +82,13 @@ def test_zim_content_config_json(zim_fh: Archive):
     assert json.loads(bytes(config_json.content)) == {  # pyright: ignore
         "secondaryColor": "#FFFFFF"
     }
+
+
+@pytest.mark.parametrize("page_id", [28207, 28208, 28209, 28212])
+def test_zim_content_page_content_json(page_id: str, zim_fh: Archive):
+    """Ensure proper content at content/config.json"""
+
+    config_json = zim_fh.get_item(f"content/page_content_{page_id}.json")
+    assert config_json.mimetype == "application/json"  # pyright: ignore
+    page_content_keys = json.loads(bytes(config_json.content)).keys()  # pyright: ignore
+    assert "htmlBody" in page_content_keys
