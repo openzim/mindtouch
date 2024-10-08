@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 
 from pydantic import BaseModel
+from requests.exceptions import HTTPError
 from zimscraperlib.download import (
     stream_file,  # pyright: ignore[reportUnknownVariableType]
 )
@@ -21,6 +22,7 @@ from libretexts2zim.client import (
     LibreTextsMetadata,
 )
 from libretexts2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
+from libretexts2zim.css import CssProcessor
 from libretexts2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -261,10 +263,44 @@ class Processor:
 
             logger.info("  Fetching and storing home page...")
             home = self.libretexts_client.get_home()
+
             welcome_image = BytesIO()
             stream_file(home.welcome_image_url, byte_stream=welcome_image)
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
+
+            css_processor = CssProcessor()
+            screen_css = BytesIO()
+            stream_file(home.screen_css_url, byte_stream=screen_css)
+            result = css_processor.process(
+                css_original_url=home.screen_css_url, css_content=screen_css.getvalue()
+            )
+            add_item_for(creator, "content/screen.css", content=result)
+            del screen_css
+
+            print_css = BytesIO()
+            stream_file(home.print_css_url, byte_stream=print_css)
+            result = css_processor.process(
+                css_original_url=home.print_css_url, css_content=print_css.getvalue()
+            )
+            add_item_for(creator, "content/print.css", content=result)
+            del print_css
+
+            logger.info(f"  Retrieving {len(css_processor.css_assets)} CSS assets...")
+            for asset_url, asset_path in css_processor.css_assets.items():
+                try:
+                    css_asset = BytesIO()
+                    stream_file(asset_url, byte_stream=css_asset)
+                    add_item_for(
+                        creator, str(asset_path)[1:], content=css_asset.getvalue()
+                    )
+                    logger.debug(f"Adding {asset_url} to {asset_path} in the ZIM")
+                    del css_asset
+                except HTTPError as exc:
+                    # would make more sense to be a warning, but this is just too
+                    # verbose, at least on geo.libretexts.org many assets are just
+                    # missing
+                    logger.debug(f"Ignoring {asset_path} due to {exc}")
 
             logger.info(f"Adding Vue.JS UI files in {self.zimui_dist}")
             for file in self.zimui_dist.rglob("*"):
