@@ -51,7 +51,13 @@ class CssProcessor:
             css_original_url,
             rules,  # pyright: ignore[reportUnknownArgumentType]
         )
-        return serialize(rules)
+        return serialize(
+            [
+                rule
+                for rule in rules  # pyright: ignore[reportUnknownVariableType]
+                if not isinstance(rule, ast.ParseError)
+            ]
+        )
 
     def _process_url(
         self, css_original_url: str, css_url: str
