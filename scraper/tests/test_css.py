@@ -223,6 +223,22 @@ background-image: url(data:image/gif;base64,R0lGODlhAQBkAPcAAAAAAAEBAQICAgMDAwQE
 """,
             id="ignore_data",
         ),
+        pytest.param(
+            """
+div {
+    background-image: url('https://example.com/image.jpg');
+}
+}/*]]>*/
+""",
+            "https://www.acme.com/styles/main.css",
+            {"https://example.com/image.jpg": Path("/content/css_assets/image.jpg")},
+            """
+div {
+    background-image: url("css_assets/image.jpg");
+}
+""",
+            id="ignore_parsing_error",
+        ),
     ],
 )
 def test_css_processor_single_doc(

@@ -42,8 +42,15 @@ watch(
 </script>
 
 <template>
-  <v-container>
-    <div v-if="main.pageContent" v-html="main.pageContent.htmlBody"></div>
-    <div v-else>Page not found</div>
-  </v-container>
+  <!-- Reproduce DOM structure of libretexts.org for proper CSS functioning -->
+  <main class="elm-skin-container">
+    <article id="elm-main-content" class="elm-content-container">
+      <section
+        class="mt-content-container"
+        v-if="main.pageContent"
+        v-html="main.pageContent.htmlBody"
+      ></section>
+      <div v-else>Page not found</div>
+    </article>
+  </main>
 </template>
