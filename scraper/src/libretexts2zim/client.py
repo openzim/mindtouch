@@ -22,6 +22,8 @@ class LibreTextsParsingError(Exception):
 class LibreTextsHome(BaseModel):
     welcome_text_paragraphs: list[str]
     welcome_image_url: str
+    screen_css_url: str
+    print_css_url: str
 
 
 LibraryPageId = str
@@ -206,6 +208,8 @@ class LibreTextsClient:
         return LibreTextsHome(
             welcome_text_paragraphs=_get_welcome_text_from_home(soup),
             welcome_image_url=_get_welcome_image_url_from_home(soup),
+            screen_css_url=_get_screen_css_url_from_home(soup),
+            print_css_url=_get_print_css_url_from_home(soup),
         )
 
     def get_deki_token(self) -> str:
@@ -308,7 +312,7 @@ class LibreTextsClient:
         if tree["body"][1]["@target"] != "toc":
             raise LibreTextsParsingError(
                 f"Unexpected second body element of /pages/{page.id}/contents, "
-                f"@target property is '{tree["body"][1]["@target"]}' while only 'toc' "
+                f"@target property is '{tree['body'][1]['@target']}' while only 'toc' "
                 "is expected"
             )
         return LibraryPageContent(html_body=tree["body"][0])
@@ -373,3 +377,31 @@ def _get_deki_token_from_home(soup: BeautifulSoup) -> str:
             "Failed to retrieve API token to query website API, missing apiToken."
         )
     return x_deki_token
+
+
+def _get_any_css_url_from_home(soup: BeautifulSoup, media: str) -> str:
+    """Returns the URL of any media CSS found on home page
+
+    This function expects there is only one <style /> with a media attribute per page
+    and returns the URL of this tag. This is is the case on libretexts.org as of October
+    2024, might be a bit fragile.
+    """
+    links = soup.find_all("link", {"rel": "stylesheet", "media": media})
+    if len(links) != 1:
+        raise LibreTextsParsingError(
+            f"Failed to find {media} CSS URL in home page, {len(links)} link(s) found"
+        )
+    css_url = links[0].get("href", None)
+    if not css_url:
+        raise LibreTextsParsingError("screen CSS link has no href")
+    return css_url
+
+
+def _get_screen_css_url_from_home(soup: BeautifulSoup) -> str:
+    """Returns the URL of screen CSS found on home page"""
+    return _get_any_css_url_from_home(soup, "screen")
+
+
+def _get_print_css_url_from_home(soup: BeautifulSoup) -> str:
+    """Returns the URL of print CSS found on home page"""
+    return _get_any_css_url_from_home(soup, "print")
