@@ -50,7 +50,6 @@ watch(
         class="mt-content-container"
         v-if="main.pageContent"
         v-html="main.pageContent.htmlBody"
-        v-mathjax="page"
       ></section>
       <div v-else>Page not found</div>
     </article>

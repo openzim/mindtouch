@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import axios, { AxiosError } from 'axios'
 import type { PageContent, Shared, SharedPage } from '@/types/shared'
+import mathjaxService from '@/services/mathjax'
 
 export type RootState = {
   shared: Shared | null
@@ -56,6 +57,8 @@ export const useMainStore = defineStore('main', {
         (response) => {
           this.isLoading = false
           this.pageContent = response.data as PageContent
+          mathjaxService.removeMathJax()
+          mathjaxService.addMathJax(mathjaxService.frontFromTitle(page.title))
         },
         (error) => {
           this.isLoading = false
