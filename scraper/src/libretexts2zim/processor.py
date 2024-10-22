@@ -312,45 +312,26 @@ class Processor:
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
-            items_to_download: dict[ZimPath, HttpUrl] = {}
-            screen_css = BytesIO()
-            stream_file(home.screen_css_url, byte_stream=screen_css)
-            url_rewriter = ArticleUrlRewriter(
-                article_url=HttpUrl(home.screen_css_url),
-                article_path=ZimPath("screen.css"),
+            self.items_to_download: dict[ZimPath, HttpUrl] = {}
+            self._process_css(
+                css_location=home.screen_css_url,
+                target_filename="screen.css",
+                creator=creator,
             )
-            css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
-            result = css_rewriter.rewrite(content=screen_css.getvalue())
-            items_to_download = {**items_to_download, **url_rewriter.items_to_download}
-            add_item_for(creator, "content/screen.css", content=result)
-            del screen_css
-            del css_rewriter
-            del url_rewriter
-
-            print_css = BytesIO()
-            stream_file(home.print_css_url, byte_stream=print_css)
-            url_rewriter = ArticleUrlRewriter(
-                article_url=HttpUrl(home.print_css_url),
-                article_path=ZimPath("print.css"),
+            self._process_css(
+                css_location=home.print_css_url,
+                target_filename="print.css",
+                creator=creator,
             )
-            css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
-            result = css_rewriter.rewrite(content=print_css.getvalue())
-            items_to_download = {**items_to_download, **url_rewriter.items_to_download}
-            add_item_for(creator, "content/print.css", content=result)
-            del print_css
-            del css_rewriter
-            del url_rewriter
-
-            url_rewriter = ArticleUrlRewriter(
-                article_url=HttpUrl(home.home_url), article_path=ZimPath("inline.css")
+            self._process_css(
+                css_location=home.home_url,
+                css_content="\n".join(home.inline_css),
+                target_filename="inline.css",
+                creator=creator,
             )
-            css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
-            result = css_rewriter.rewrite(content=("\n".join(home.inline_css)))
-            items_to_download = {**items_to_download, **url_rewriter.items_to_download}
-            add_item_for(creator, "content/inline.css", content=result)
 
-            logger.info(f"  Retrieving {len(items_to_download)} CSS assets...")
-            for asset_path, asset_url in items_to_download.items():
+            logger.info(f"  Retrieving {len(self.items_to_download)} CSS assets...")
+            for asset_path, asset_url in self.items_to_download.items():
                 try:
                     css_asset = BytesIO()
                     stream_file(asset_url.value, byte_stream=css_asset)
@@ -402,3 +383,35 @@ class Processor:
                 )
 
         return zim_path
+
+    def _process_css(
+        self,
+        creator: Creator,
+        target_filename: str,
+        css_location: str,
+        css_content: str | bytes | None = None,
+    ):
+        """Process a given CSS stylesheet
+        Download content if necessary, rewrite CSS and add CSS to ZIM
+        """
+        if not css_location:
+            raise ValueError(f"Cannot process empty css_location for {target_filename}")
+        if not css_content:
+            css_buffer = BytesIO()
+            stream_file(css_location, byte_stream=css_buffer)
+            css_content = css_buffer.getvalue()
+        url_rewriter = ArticleUrlRewriter(
+            article_url=HttpUrl(css_location),
+            article_path=ZimPath(target_filename),
+        )
+        css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
+        result = css_rewriter.rewrite(content=css_content)
+        # Rebuild the dict since we might have "conflict" of ZimPath (two urls leading
+        # to the same ZimPath) and we prefer to use the first URL encountered, where
+        # using self.items_to_download.update while override the key value, prefering
+        # to use last URL encountered.
+        self.items_to_download = {
+            **self.items_to_download,
+            **url_rewriter.items_to_download,
+        }
+        add_item_for(creator, f"content/{target_filename}", content=result)
