@@ -10,6 +10,12 @@ from zimscraperlib.download import (
     stream_file,  # pyright: ignore[reportUnknownVariableType]
 )
 from zimscraperlib.image import resize_image
+from zimscraperlib.rewriting.css import CssRewriter
+from zimscraperlib.rewriting.url_rewriting import (
+    ArticleUrlRewriter,
+    HttpUrl,
+    ZimPath,
+)
 from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
@@ -22,7 +28,6 @@ from libretexts2zim.client import (
     LibreTextsMetadata,
 )
 from libretexts2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
-from libretexts2zim.css import CssProcessor
 from libretexts2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -307,44 +312,43 @@ class Processor:
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
-            css_processor = CssProcessor()
-            screen_css = BytesIO()
-            stream_file(home.screen_css_url, byte_stream=screen_css)
-            result = css_processor.process(
-                css_original_url=home.screen_css_url, css_content=screen_css.getvalue()
+            self.items_to_download: dict[ZimPath, HttpUrl] = {}
+            self._process_css(
+                css_location=home.screen_css_url,
+                target_filename="screen.css",
+                creator=creator,
             )
-            add_item_for(creator, "content/screen.css", content=result)
-            del screen_css
-
-            print_css = BytesIO()
-            stream_file(home.print_css_url, byte_stream=print_css)
-            result = css_processor.process(
-                css_original_url=home.print_css_url, css_content=print_css.getvalue()
+            self._process_css(
+                css_location=home.print_css_url,
+                target_filename="print.css",
+                creator=creator,
             )
-            add_item_for(creator, "content/print.css", content=result)
-            del print_css
-
-            result = css_processor.process(
-                css_original_url=home.home_url,
-                css_content=("\n".join(home.inline_css)).encode(),
+            self._process_css(
+                css_location=home.home_url,
+                css_content="\n".join(home.inline_css),
+                target_filename="inline.css",
+                creator=creator,
             )
-            add_item_for(creator, "content/inline.css", content=result)
 
-            logger.info(f"  Retrieving {len(css_processor.css_assets)} CSS assets...")
-            for asset_url, asset_path in css_processor.css_assets.items():
+            logger.info(f"  Retrieving {len(self.items_to_download)} CSS assets...")
+            for asset_path, asset_url in self.items_to_download.items():
                 try:
                     css_asset = BytesIO()
-                    stream_file(asset_url, byte_stream=css_asset)
-                    add_item_for(
-                        creator, str(asset_path)[1:], content=css_asset.getvalue()
+                    stream_file(asset_url.value, byte_stream=css_asset)
+                    logger.debug(
+                        f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
                     )
-                    logger.debug(f"Adding {asset_url} to {asset_path} in the ZIM")
+                    add_item_for(
+                        creator,
+                        "content/" + asset_path.value,
+                        content=css_asset.getvalue(),
+                    )
                     del css_asset
                 except HTTPError as exc:
                     # would make more sense to be a warning, but this is just too
                     # verbose, at least on geo.libretexts.org many assets are just
                     # missing
-                    logger.debug(f"Ignoring {asset_path} due to {exc}")
+                    logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
             logger.info("Fetching pages tree")
             pages_tree = self.libretexts_client.get_page_tree()
@@ -379,3 +383,35 @@ class Processor:
                 )
 
         return zim_path
+
+    def _process_css(
+        self,
+        creator: Creator,
+        target_filename: str,
+        css_location: str,
+        css_content: str | bytes | None = None,
+    ):
+        """Process a given CSS stylesheet
+        Download content if necessary, rewrite CSS and add CSS to ZIM
+        """
+        if not css_location:
+            raise ValueError(f"Cannot process empty css_location for {target_filename}")
+        if not css_content:
+            css_buffer = BytesIO()
+            stream_file(css_location, byte_stream=css_buffer)
+            css_content = css_buffer.getvalue()
+        url_rewriter = ArticleUrlRewriter(
+            article_url=HttpUrl(css_location),
+            article_path=ZimPath(target_filename),
+        )
+        css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
+        result = css_rewriter.rewrite(content=css_content)
+        # Rebuild the dict since we might have "conflict" of ZimPath (two urls leading
+        # to the same ZimPath) and we prefer to use the first URL encountered, where
+        # using self.items_to_download.update while override the key value, prefering
+        # to use last URL encountered.
+        self.items_to_download = {
+            **self.items_to_download,
+            **url_rewriter.items_to_download,
+        }
+        add_item_for(creator, f"content/{target_filename}", content=result)
