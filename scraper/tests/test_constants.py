@@ -1,4 +1,4 @@
-from libretexts2zim.__about__ import __version__
+from mindtouch2zim.__about__ import __version__
 
 
 def test_version():

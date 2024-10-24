@@ -5,9 +5,9 @@ from zimscraperlib.logging import (
     getLogger,
 )
 
-from libretexts2zim.__about__ import __version__
+from mindtouch2zim.__about__ import __version__
 
-NAME = "libretexts2zim"
+NAME = "mindtouch2zim"
 VERSION = __version__
 ROOT_DIR = pathlib.Path(__file__).parent
 

@@ -21,13 +21,13 @@ This needs to be done everytime you make significant changes to the scraper (Pyt
 To achieve this, first build the Docker image based on current code base.
 
 ```
-docker build -t local-libretexts2zim .
+docker build -t local-mindtouch .
 ```
 
 Scrape a library (here we use the [Geosciences](https://geo.libretexts.org) library, with only page id 28207 and its children but you could use any other one of interest for your UI developments).
 
 ```
-docker run --rm -it -v "$PWD/output":/output local-libretexts2zim libretexts2zim --library-slug geo --library-name Geosciences --file-name-format "tests_en_libretexts-geo" --root-page-id 28207 --overwrite
+docker run --rm -it -v "$PWD/output":/output local-mindtouch mindtouch2zim --library-url https://geo.libretexts.org --name libretexts.org_en_geo --creator LibreTexts --title "LibreTexts Geosciences" --description "Geosciences courses from libretexts.org" --file-name tests_en_libretexts-geo --root-page-id 28207 --overwrite
 ```
 
 Extract interesting ZIM content and move it to `public` folder.

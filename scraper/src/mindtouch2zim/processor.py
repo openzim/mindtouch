@@ -20,21 +20,20 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
-from libretexts2zim.client import (
+from mindtouch2zim.client import (
     LibraryPage,
     LibraryPageId,
     LibraryTree,
-    LibreTextsClient,
-    LibreTextsMetadata,
+    MindtouchClient,
 )
-from libretexts2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
-from libretexts2zim.ui import (
+from mindtouch2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
+from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
     PageModel,
     SharedModel,
 )
-from libretexts2zim.zimconfig import ZimConfig
+from mindtouch2zim.zimconfig import ZimConfig
 
 
 class InvalidFormatError(Exception):
@@ -158,7 +157,7 @@ class Processor:
 
     def __init__(
         self,
-        libretexts_client: LibreTextsClient,
+        mindtouch_client: MindtouchClient,
         zim_config: ZimConfig,
         content_filter: ContentFilter,
         output_folder: Path,
@@ -176,7 +175,7 @@ class Processor:
             zimui_dist: Build directory where Vite placed compiled Vue.JS frontend.
             overwrite_existing_zim: Do not fail if ZIM already exists, overwrite it.
         """
-        self.libretexts_client = libretexts_client
+        self.mindtouch_client = mindtouch_client
         self.zim_config = zim_config
         self.content_filter = content_filter
         self.output_folder = output_folder
@@ -205,11 +204,13 @@ class Processor:
         """
         logger.info("Generating ZIM")
 
-        metadata = LibreTextsMetadata(
-            name=self.zim_config.library_name, slug=self.libretexts_client.library_slug
+        formatted_config = self.zim_config.format(
+            {
+                "name": self.zim_config.name,
+                "period": datetime.date.today().strftime("%Y-%m"),
+            }
         )
-        formatted_config = self.zim_config.format(metadata.placeholders())
-        zim_file_name = f"{formatted_config.file_name_format}.zim"
+        zim_file_name = f"{formatted_config.file_name}.zim"
         zim_path = self.output_folder / zim_file_name
 
         if zim_path.exists():
@@ -237,13 +238,13 @@ class Processor:
 
         logger.debug("Configuring metadata")
         creator.config_metadata(
-            Name=formatted_config.name_format,
-            Title=formatted_config.title_format,
+            Name=formatted_config.name,
+            Title=formatted_config.title,
             Publisher=formatted_config.publisher,
             Date=datetime.datetime.now(tz=datetime.UTC).date(),
             Creator=formatted_config.creator,
-            Description=formatted_config.description_format,
-            LongDescription=formatted_config.long_description_format,
+            Description=formatted_config.description,
+            LongDescription=formatted_config.long_description,
             # As of 2024-09-4 all documentation is in English.
             Language=LANGUAGE_ISO_639_3,
             Tags=formatted_config.tags,
@@ -277,7 +278,7 @@ class Processor:
                         path=path,
                         content=index_html_path.read_text(encoding="utf-8").replace(
                             "<title>Vite App</title>",
-                            f"<title>{formatted_config.title_format}</title>",
+                            f"<title>{formatted_config.title}</title>",
                         ),
                         mimetype="text/html",
                         is_front=True,
@@ -305,7 +306,7 @@ class Processor:
                 )
 
             logger.info("  Fetching and storing home page...")
-            home = self.libretexts_client.get_home()
+            home = self.mindtouch_client.get_home()
 
             welcome_image = BytesIO()
             stream_file(home.welcome_image_url, byte_stream=welcome_image)
@@ -351,7 +352,7 @@ class Processor:
                     logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
             logger.info("Fetching pages tree")
-            pages_tree = self.libretexts_client.get_page_tree()
+            pages_tree = self.mindtouch_client.get_page_tree()
             selected_pages = self.content_filter.filter(pages_tree)
             logger.info(
                 f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "
@@ -373,7 +374,7 @@ class Processor:
             logger.info("Fetching pages content")
             for page in selected_pages:
                 logger.debug(f"  Fetching {page.id}")
-                page_content = self.libretexts_client.get_page_content(page)
+                page_content = self.mindtouch_client.get_page_content(page)
                 add_item_for(
                     creator,
                     f"content/page_content_{page.id}.json",

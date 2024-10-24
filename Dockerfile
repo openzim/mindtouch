@@ -1,4 +1,4 @@
-FROM node:20-alpine as zimui
+FROM node:20-alpine AS zimui
 
 WORKDIR /src
 COPY zimui /src
@@ -6,7 +6,7 @@ RUN yarn install --frozen-lockfile
 RUN yarn build
 
 FROM python:3.12-bookworm
-LABEL org.opencontainers.image.source https://github.com/openzim/libretexts
+LABEL org.opencontainers.image.source=https://github.com/openzim/mindtouch
 
 # Install necessary packages
 RUN apt-get update \
@@ -27,8 +27,8 @@ WORKDIR /output
 
 # Copy pyproject.toml and its dependencies
 COPY README.md /src/
-COPY scraper/pyproject.toml /src/scraper/
-COPY scraper/src/libretexts2zim/__about__.py /src/scraper/src/libretexts2zim/__about__.py
+COPY scraper/pyproject.toml scraper/openzim.toml /src/scraper/
+COPY scraper/src/mindtouch2zim/__about__.py /src/scraper/src/mindtouch2zim/__about__.py
 
 # Install Python dependencies
 RUN pip install --no-cache-dir /src/scraper
@@ -44,8 +44,8 @@ RUN pip install --no-cache-dir /src/scraper \
 # Copy zimui build output
 COPY --from=zimui /src/dist /src/zimui
 
-ENV LIBRETEXTS_ZIMUI_DIST=/src/zimui \
-    LIBRETEXTS_OUTPUT=/output \
-    LIBRETEXTS_TMP=/tmp
+ENV MINDTOUCH_ZIMUI_DIST=/src/zimui \
+    MINDTOUCH_OUTPUT=/output \
+    MINDTOUCH_TMP=/tmp
 
-CMD ["libretexts2zim", "--help"]
+CMD ["mindtouch2zim", "--help"]

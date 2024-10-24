@@ -1,5 +1,5 @@
 [files.assets.config]
-target_dir="src/libretexts2zim"
+target_dir="src/mindtouch2zim"
 
 [files.assets.actions."mathjax"]
 action="extract_items"

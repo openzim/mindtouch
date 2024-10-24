@@ -10,29 +10,28 @@ from zimscraperlib.constants import (
 )
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 
-from libretexts2zim.client import LibreTextsClient
-from libretexts2zim.constants import (
+from mindtouch2zim.client import MindtouchClient
+from mindtouch2zim.constants import (
     NAME,
     VERSION,
     logger,
 )
-from libretexts2zim.processor import ContentFilter, Processor
-from libretexts2zim.zimconfig import ZimConfig
+from mindtouch2zim.processor import ContentFilter, Processor
+from mindtouch2zim.zimconfig import ZimConfig
 
 
 def zim_defaults() -> ZimConfig:
     """Returns the default configuration for ZIM generation."""
     return ZimConfig(
         secondary_color="#FFFFFF",
-        library_name="not_used",  # this is always replaced because arg is required
-        file_name_format="libretexts_en_{clean_slug}_{period}",
-        name_format="libretexts_en_{clean_slug}",
-        creator="LibreTexts",
+        file_name="{name}_{period}",
+        name="not_used",  # this is always replaced because arg is required",
+        creator="not_used",  # this is always replaced because arg is required",
         publisher="openZIM",
-        title_format="{name} courses",
-        description_format="{name} courses by LibreTexts",
-        long_description_format=None,
-        tags="libretexts;{clean_slug}",
+        title="not_used",  # this is always replaced because arg is required",
+        description="not_used",  # this is always replaced because arg is required",
+        long_description=None,
+        tags="",
     )
 
 
@@ -44,73 +43,56 @@ def add_zim_config_flags(parser: argparse.ArgumentParser, defaults: "ZimConfig")
     """
 
     parser.add_argument(
-        "--library-name",
-        help="Display name for the library, e.g. Geosciences",
+        "--creator",
+        help="Name of content creator.",
         required=True,
     )
 
     parser.add_argument(
-        "--creator",
-        help=f"Name of content creator. Default: {defaults.creator!r}",
-        default=defaults.creator,
-    )
-
-    parser.add_argument(
         "--publisher",
-        help=f"Custom publisher name. Default: {defaults.publisher!r}",
+        help=f"Publisher name. Default: {defaults.publisher!r}",
         default=defaults.publisher,
     )
 
     parser.add_argument(
-        "--file-name-format",
+        "--file-name",
         help="Custom file name format for individual ZIMs. "
-        f"Default: {defaults.file_name_format!r}",
-        default=defaults.file_name_format,
-        metavar="FORMAT",
+        f"Default: {defaults.file_name!r}",
+        default=defaults.file_name,
     )
 
     parser.add_argument(
-        "--name-format",
-        help="Custom name format for individual ZIMs. "
-        f"Default: {defaults.name_format!r}",
-        default=defaults.name_format,
-        metavar="FORMAT",
+        "--name",
+        help="Name of the ZIM.",
+        required=True,
     )
 
     parser.add_argument(
-        "--title-format",
-        help=f"Custom title format for individual ZIMs. Final value must not be "
-        f"longer than {RECOMMENDED_MAX_TITLE_LENGTH} chars. "
-        f"Default: {defaults.title_format!r}",
-        default=defaults.title_format,
-        metavar="FORMAT",
+        "--title",
+        help=f"Title of the ZIM. Value must not be longer than "
+        f"{RECOMMENDED_MAX_TITLE_LENGTH} chars.",
+        required=True,
     )
 
     parser.add_argument(
-        "--description-format",
-        help="Custom description format for individual ZIMs. Final value must not "
-        f"be longer than {MAXIMUM_DESCRIPTION_METADATA_LENGTH} chars. "
-        f"Default: {defaults.title_format!r}",
-        default=defaults.description_format,
-        metavar="FORMAT",
+        "--description",
+        help="Description of the ZIM. Value must not be longer than "
+        f"{MAXIMUM_DESCRIPTION_METADATA_LENGTH} chars.",
+        required=True,
     )
 
     parser.add_argument(
-        "--long-description-format",
-        help="Custom long description format for your ZIM. Final value must not be "
-        f"longer than {MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH} chars. "
-        f"Default: {defaults.long_description_format!r}",
-        default=defaults.long_description_format,
-        metavar="FORMAT",
+        "--long-description",
+        help="Long description of the ZIM. Value must not be longer than "
+        f"{MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH} chars.",
+        default=defaults.long_description,
     )
 
     # Due to https://github.com/python/cpython/issues/60603 defaulting an array in
     # argparse doesn't work so we expose the underlying semicolon delimited string.
     parser.add_argument(
         "--tags",
-        help="A semicolon (;) delimited list of tags to add to the ZIM."
-        "Formatting is supported. "
-        f"Default: {defaults.tags!r}",
+        help="A semicolon (;) delimited list of tags to add to the ZIM.",
         default=defaults.tags,
     )
 
@@ -169,9 +151,9 @@ def main(tmpdir: str) -> None:
 
     # Client configuration flags
     parser.add_argument(
-        "--library-slug",
-        help="URL prefix for the library, e.g. for Geosciences which is at "
-        "https://geo.libretexts.org/, the slug is `geo`",
+        "--library-url",
+        help="URL of the Mindtouch / Nice CXone Expert instance, e.g. for LibreTexts "
+        "Geosciences it is https://geo.libretexts.org/",
         required=True,
     )
 
@@ -191,14 +173,14 @@ def main(tmpdir: str) -> None:
     parser.add_argument(
         "--output",
         help="Output folder for ZIMs. Default: /output",
-        default="/output",
+        default=os.getenv("MINDTOUCH_OUTPUT", "/output"),
         dest="output_folder",
     )
 
     parser.add_argument(
         "--tmp",
         help="Temporary folder for cache, intermediate files, ... Default: tmp",
-        default=os.getenv("LIBRETEXTS_TMP", tmpdir),
+        default=os.getenv("MINDTOUCH_TMP", tmpdir),
         dest="tmp_folder",
     )
 
@@ -213,7 +195,7 @@ def main(tmpdir: str) -> None:
             "Dev option to customize directory containing Vite build output from the "
             "ZIM UI Vue.JS application"
         ),
-        default=os.getenv("LIBRETEXTS_ZIMUI_DIST", "../zimui/dist"),
+        default=os.getenv("MINDTOUCH_ZIMUI_DIST", "../zimui/dist"),
     )
 
     parser.add_argument(
@@ -242,13 +224,13 @@ def main(tmpdir: str) -> None:
         cache_folder = tmp_folder / "cache"
         cache_folder.mkdir(exist_ok=True)
 
-        libretexts_client = LibreTextsClient(
-            library_slug=args.library_slug,
+        mindtouch_client = MindtouchClient(
+            library_url=args.library_url,
             cache_folder=cache_folder,
         )
 
         Processor(
-            libretexts_client=libretexts_client,
+            mindtouch_client=mindtouch_client,
             zim_config=zim_config,
             output_folder=Path(args.output_folder),
             zimui_dist=Path(args.zimui_dist),

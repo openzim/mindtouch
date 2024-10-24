@@ -1,17 +1,18 @@
-# Libretexts.org scraper
+# Mindtouch scraper
 
-This scraper downloads [libretexts.org](https://libretexts.org/) courses and puts them in ZIM files,
-a clean and user friendly format for storing content for offline usage.
+This scraper transform content on a Mindtouch / Nice CXone Expert instance into a in ZIM file, a clean and user friendly format for storing content for offline usage.
 
-[![CodeFactor](https://www.codefactor.io/repository/github/openzim/libretexts/badge)](https://www.codefactor.io/repository/github/openzim/libretexts)
+While meant to be generic for any Mindtouch instance, it has so far been tested only on libretexts.org instance, so it is highly expectable some rough edges might need to be polished until it works on all Mindtouch instance.
+
+[![CodeFactor](https://www.codefactor.io/repository/github/openzim/mindtouch/badge)](https://www.codefactor.io/repository/github/openzim/mindtouch)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![codecov](https://codecov.io/gh/openzim/libretexts/branch/main/graph/badge.svg)](https://codecov.io/gh/openzim/libretexts)
-[![PyPI version shields.io](https://img.shields.io/pypi/v/libretexts2zim.svg)](https://pypi.org/project/libretexts2zim/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/libretexts2zim.svg)](https://pypi.org/project/libretexts2zim)
+[![codecov](https://codecov.io/gh/openzim/mindtouch/branch/main/graph/badge.svg)](https://codecov.io/gh/openzim/mindtouch)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/mindtouch2zim.svg)](https://pypi.org/project/mindtouch2zim/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mindtouch2zim.svg)](https://pypi.org/project/mindtouch2zim)
 
 ## Installation
 
-There are three main ways to install and use `libretexts2zim` from most recommended to least:
+There are three main ways to install and use `mindtouch2zim` from most recommended to least:
 
 <details>
 <summary>Install using a pre-built container</summary>
@@ -19,7 +20,7 @@ There are three main ways to install and use `libretexts2zim` from most recommen
 1. Download the image using `docker`:
 
    ```sh
-   docker pull ghcr.io/openzim/libretexts
+   docker pull ghcr.io/openzim/mindtouch
    ```
 
 </details>
@@ -29,13 +30,13 @@ There are three main ways to install and use `libretexts2zim` from most recommen
 1. Clone the repository locally:
 
    ```sh
-   git clone https://github.com/openzim/libretexts.git && cd libretexts
+   git clone https://github.com/openzim/mindtouch.git && cd mindtouch
    ```
 
 1. Build the image:
 
    ```sh
-   docker build -t ghcr.io/openzim/libretexts .
+   docker build -t ghcr.io/openzim/mindtouch .
    ```
 
 </details>
@@ -45,7 +46,7 @@ There are three main ways to install and use `libretexts2zim` from most recommen
 1. Clone the repository locally:
 
    ```sh
-   git clone https://github.com/openzim/libretexts.git && cd libretexts
+   git clone https://github.com/openzim/mindtouch.git && cd mindtouch
    ```
 
 1. Install [Hatch](https://hatch.pypa.io/):
@@ -60,10 +61,10 @@ There are three main ways to install and use `libretexts2zim` from most recommen
    hatch shell
    ```
 
-1. Run the `libretexts2zim` command:
+1. Run the `mindtouch2zim` command:
 
    ```sh
-   libretexts2zim --help
+   mindtouch2zim --help
    ```
 
 </details>
@@ -75,12 +76,12 @@ There are three main ways to install and use `libretexts2zim` from most recommen
 
 ```sh
 # Get help
-docker run -v output:/output ghcr.io/openzim/libretexts libretexts2zim --help
+docker run -v output:/output ghcr.io/openzim/mindtouch mindtouch2zim --help
 ```
 
 ```sh
 # Create a ZIM for https://geo.libretexts.org
-docker run -v output:/output ghcr.io/openzim/libretexts libretexts2zim --library-slug geo --library-name Geosciences
+docker run -v output:/output ghcr.io/openzim/mindtouch mindtouch2zim --library-url https://geo.libretexts.org --name libretexts.org_en_geo --creator LibreTexts --title "LibreTexts Geosciences" --description "Geosciences courses from libretexts.org"
 ```
 
 ## Developing

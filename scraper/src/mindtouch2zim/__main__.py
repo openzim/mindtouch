@@ -1,6 +1,6 @@
 import tempfile
 
-from libretexts2zim.entrypoint import main as entrypoint
+from mindtouch2zim.entrypoint import main as entrypoint
 
 
 def main():
