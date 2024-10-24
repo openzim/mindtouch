@@ -373,15 +373,7 @@ class Processor:
 
             logger.info("Fetching pages content")
             for page in selected_pages:
-                logger.debug(f"  Fetching {page.id}")
-                page_content = self.mindtouch_client.get_page_content(page)
-                add_item_for(
-                    creator,
-                    f"content/page_content_{page.id}.json",
-                    content=PageContentModel(
-                        html_body=page_content.html_body
-                    ).model_dump_json(by_alias=True),
-                )
+                self._process_page(creator=creator, page=page)
 
         return zim_path
 
@@ -416,3 +408,17 @@ class Processor:
             **url_rewriter.items_to_download,
         }
         add_item_for(creator, f"content/{target_filename}", content=result)
+
+    def _process_page(self, creator: Creator, page: LibraryPage):
+        """Process a given library page
+        Download content, rewrite HTML and add JSON to ZIM
+        """
+        logger.debug(f"  Fetching {page.id}")
+        page_content = self.mindtouch_client.get_page_content(page)
+        add_item_for(
+            creator,
+            f"content/page_content_{page.id}.json",
+            content=PageContentModel(html_body=page_content.html_body).model_dump_json(
+                by_alias=True
+            ),
+        )
