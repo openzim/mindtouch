@@ -11,9 +11,12 @@ from zimscraperlib.download import (
 )
 from zimscraperlib.image import resize_image
 from zimscraperlib.rewriting.css import CssRewriter
+from zimscraperlib.rewriting.html import HtmlRewriter
+from zimscraperlib.rewriting.html import rules as html_rules
 from zimscraperlib.rewriting.url_rewriting import (
     ArticleUrlRewriter,
     HttpUrl,
+    RewriteResult,
     ZimPath,
 )
 from zimscraperlib.zim import Creator
@@ -313,7 +316,7 @@ class Processor:
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
-            self.items_to_download: dict[ZimPath, HttpUrl] = {}
+            self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
             self._process_css(
                 css_location=home.screen_css_url,
                 target_filename="screen.css",
@@ -330,26 +333,6 @@ class Processor:
                 target_filename="inline.css",
                 creator=creator,
             )
-
-            logger.info(f"  Retrieving {len(self.items_to_download)} CSS assets...")
-            for asset_path, asset_url in self.items_to_download.items():
-                try:
-                    css_asset = BytesIO()
-                    stream_file(asset_url.value, byte_stream=css_asset)
-                    logger.debug(
-                        f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
-                    )
-                    add_item_for(
-                        creator,
-                        "content/" + asset_path.value,
-                        content=css_asset.getvalue(),
-                    )
-                    del css_asset
-                except HTTPError as exc:
-                    # would make more sense to be a warning, but this is just too
-                    # verbose, at least on geo.libretexts.org many assets are just
-                    # missing
-                    logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
             logger.info("Fetching pages tree")
             pages_tree = self.mindtouch_client.get_page_tree()
@@ -372,8 +355,37 @@ class Processor:
             )
 
             logger.info("Fetching pages content")
+            html_pages = {
+                ArticleUrlRewriter.normalize(
+                    HttpUrl(f"{self.mindtouch_client.library_url}/{page.path}")
+                )
+                for page in selected_pages
+            }
             for page in selected_pages:
-                self._process_page(creator=creator, page=page)
+                self._process_page(
+                    creator=creator, page=page, existing_zim_paths=html_pages
+                )
+
+            logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
+            for asset_path, asset_urls in self.items_to_download.items():
+                for asset_url in asset_urls:
+                    try:
+                        css_asset = BytesIO()
+                        stream_file(asset_url.value, byte_stream=css_asset)
+                        logger.debug(
+                            f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
+                        )
+                        add_item_for(
+                            creator,
+                            "content/" + asset_path.value,
+                            content=css_asset.getvalue(),
+                        )
+                        break  # file found and added
+                    except HTTPError as exc:
+                        # would make more sense to be a warning, but this is just too
+                        # verbose, at least on geo.libretexts.org many assets are just
+                        # missing
+                        logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
         return zim_path
 
@@ -393,32 +405,171 @@ class Processor:
             css_buffer = BytesIO()
             stream_file(css_location, byte_stream=css_buffer)
             css_content = css_buffer.getvalue()
-        url_rewriter = ArticleUrlRewriter(
+        url_rewriter = CssUrlsRewriter(
             article_url=HttpUrl(css_location),
             article_path=ZimPath(target_filename),
         )
-        css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
+        css_rewriter = CssRewriter(
+            url_rewriter=url_rewriter, base_href=None, remove_errors=True
+        )
         result = css_rewriter.rewrite(content=css_content)
         # Rebuild the dict since we might have "conflict" of ZimPath (two urls leading
         # to the same ZimPath) and we prefer to use the first URL encountered, where
         # using self.items_to_download.update while override the key value, prefering
         # to use last URL encountered.
-        self.items_to_download = {
-            **self.items_to_download,
-            **url_rewriter.items_to_download,
-        }
+        for path, urls in url_rewriter.items_to_download.items():
+            if path in self.items_to_download:
+                self.items_to_download[path].update(urls)
+            else:
+                self.items_to_download[path] = urls
         add_item_for(creator, f"content/{target_filename}", content=result)
 
-    def _process_page(self, creator: Creator, page: LibraryPage):
+    def _process_page(
+        self, creator: Creator, page: LibraryPage, existing_zim_paths: set[ZimPath]
+    ):
         """Process a given library page
         Download content, rewrite HTML and add JSON to ZIM
         """
         logger.debug(f"  Fetching {page.id}")
         page_content = self.mindtouch_client.get_page_content(page)
+        url_rewriter = HtmlUrlsRewriter(
+            self.mindtouch_client.library_url,
+            page,
+            existing_zim_paths=existing_zim_paths,
+        )
+        rewriter = HtmlRewriter(
+            url_rewriter=url_rewriter,
+            pre_head_insert=None,
+            post_head_insert=None,
+            notify_js_module=None,
+        )
+        rewriten = rewriter.rewrite(page_content.html_body)
+        for path, urls in url_rewriter.items_to_download.items():
+            if path in self.items_to_download:
+                self.items_to_download[path].update(urls)
+            else:
+                self.items_to_download[path] = urls
         add_item_for(
             creator,
             f"content/page_content_{page.id}.json",
-            content=PageContentModel(html_body=page_content.html_body).model_dump_json(
+            content=PageContentModel(html_body=rewriten.content).model_dump_json(
                 by_alias=True
             ),
         )
+
+
+html_rules.rewrite_attribute_rules.clear()
+html_rules.rewrite_data_rules.clear()
+html_rules.rewrite_tag_rules.clear()
+
+
+@html_rules.rewrite_attribute()
+def rewrite_href_src_attributes(
+    tag: str,
+    attr_name: str,
+    attr_value: str | None,
+    url_rewriter: ArticleUrlRewriter,
+    base_href: str | None,
+):
+    """Rewrite href and src attributes"""
+    if attr_name not in ("href", "src") or not attr_value:
+        return
+    if not isinstance(url_rewriter, HtmlUrlsRewriter):
+        raise Exception("Expecting MindtouchUrlRewriter")
+    rewrite_result = url_rewriter(
+        attr_value, base_href=base_href, rewrite_all_url=tag != "a"
+    )
+    new_attr_value = None
+    if tag == "a":
+        new_attr_value = (
+            f"#/{rewrite_result.rewriten_url[len(url_rewriter.library_path.value) :]}"
+            if rewrite_result.rewriten_url.startswith(url_rewriter.library_path.value)
+            else rewrite_result.rewriten_url
+        )
+    if tag == "img":
+        new_attr_value = f"content/{rewrite_result.rewriten_url}"
+        if rewrite_result.zim_path is not None:
+            if rewrite_result.zim_path in url_rewriter.items_to_download:
+                url_rewriter.items_to_download[rewrite_result.zim_path].add(
+                    HttpUrl(rewrite_result.absolute_url)
+                )
+            else:
+                url_rewriter.items_to_download[rewrite_result.zim_path] = {
+                    HttpUrl(rewrite_result.absolute_url)
+                }
+    if not new_attr_value:
+        raise ValueError(
+            f"Empty new value when rewriting {attr_value} from {attr_name} in {tag} tag"
+        )
+    logger.debug(f" Rewritten {attr_value} to {new_attr_value}")
+    return (attr_name, new_attr_value)
+
+
+@html_rules.drop_attribute()
+def drop_sizes_and_srcset_attribute(tag: str, attr_name: str):
+    """Drop integrity attribute in <script> tags"""
+    return tag == "img" and attr_name in ("srcset", "sizes")
+
+
+@html_rules.rewrite_tag()
+def refuse_unsupported_tags(tag: str):
+    """Stop scraper if unsupported tag is encountered"""
+    if tag not in ["picture"]:
+        return
+    raise UnsupportedTagError(f"Tag {tag} is not yet supported in this scraper")
+
+
+class UnsupportedTagError(Exception):
+    pass
+
+
+class HtmlUrlsRewriter(ArticleUrlRewriter):
+
+    def __init__(
+        self, library_url: str, page: LibraryPage, existing_zim_paths: set[ZimPath]
+    ):
+        super().__init__(
+            article_url=HttpUrl(f"{library_url}/{page.path}"),
+            article_path=ZimPath("index.html"),
+            existing_zim_paths=existing_zim_paths,
+        )
+        self.library_url = library_url
+        self.library_path = ArticleUrlRewriter.normalize(HttpUrl(f"{library_url}/"))
+        self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+
+    def __call__(
+        self, item_url: str, base_href: str | None, *, rewrite_all_url: bool = True
+    ) -> RewriteResult:
+        result = super().__call__(item_url, base_href, rewrite_all_url=rewrite_all_url)
+        return result
+
+
+class CssUrlsRewriter(ArticleUrlRewriter):
+
+    def __init__(
+        self,
+        *,
+        article_url: HttpUrl,
+        article_path: ZimPath,
+    ):
+        super().__init__(
+            article_url=article_url,
+            article_path=article_path,
+        )
+        self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+
+    def __call__(
+        self,
+        item_url: str,
+        base_href: str | None,
+        *,
+        rewrite_all_url: bool = True,  # noqa: ARG002
+    ) -> RewriteResult:
+        result = super().__call__(item_url, base_href, rewrite_all_url=True)
+        if result.zim_path is None:
+            return result
+        if result.zim_path in self.items_to_download:
+            self.items_to_download[result.zim_path].add(HttpUrl(result.absolute_url))
+        else:
+            self.items_to_download[result.zim_path] = {HttpUrl(result.absolute_url)}
+        return result
