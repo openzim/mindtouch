@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from libretexts2zim.utils import get_asset_path_from_url
+from mindtouch2zim.utils import get_asset_path_from_url
 
 
 @pytest.mark.parametrize(

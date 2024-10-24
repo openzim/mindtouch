@@ -1,7 +1,7 @@
 import pytest
 
-from libretexts2zim.client import LibraryPage, LibraryTree
-from libretexts2zim.processor import ContentFilter
+from mindtouch2zim.client import LibraryPage, LibraryTree
+from mindtouch2zim.processor import ContentFilter
 
 
 @pytest.fixture(scope="module")

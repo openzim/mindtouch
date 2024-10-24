@@ -8,26 +8,26 @@ from zimscraperlib.download import (
 )
 from zimscraperlib.image.probing import format_for
 
-from libretexts2zim.client import (
+from mindtouch2zim.client import (
     LibraryPageId,
     LibraryTree,
-    LibreTextsClient,
-    LibreTextsHome,
+    MindtouchClient,
+    MindtouchHome,
 )
 
 
 @pytest.fixture(scope="module")
-def client(libretexts_slug: str, cache_folder: Path) -> LibreTextsClient:
-    return LibreTextsClient(library_slug=libretexts_slug, cache_folder=cache_folder)
+def client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
+    return MindtouchClient(library_url=libretexts_url, cache_folder=cache_folder)
 
 
 @pytest.fixture(scope="module")
-def home(client: LibreTextsClient) -> LibreTextsHome:
+def home(client: MindtouchClient) -> MindtouchHome:
     return client.get_home()
 
 
 @pytest.fixture(scope="module")
-def deki_token(client: LibreTextsClient) -> str:
+def deki_token(client: MindtouchClient) -> str:
     return client.get_deki_token()
 
 
@@ -48,7 +48,7 @@ def nb_root_children() -> int:
 
 @pytest.fixture(scope="module")
 def page_tree(
-    client: LibreTextsClient,
+    client: MindtouchClient,
     deki_token: str,  # noqa: ARG001
 ) -> LibraryTree:
     return client.get_page_tree()
@@ -60,7 +60,7 @@ def test_get_deki_token(deki_token: str):
 
 
 def test_get_all_pages_ids(
-    client: LibreTextsClient,
+    client: MindtouchClient,
     minimum_number_of_pages: int,
     deki_token: str,  # noqa: ARG001
 ):
@@ -69,7 +69,7 @@ def test_get_all_pages_ids(
 
 
 def test_get_root_page_id(
-    client: LibreTextsClient,
+    client: MindtouchClient,
     root_page_id: LibraryPageId,
     deki_token: str,  # noqa: ARG001
 ):
@@ -111,12 +111,12 @@ def test_get_page_tree_subtree(
     assert len(subtree2.pages.keys()) == 94
 
 
-def test_get_home_image_url(home: LibreTextsHome):
+def test_get_home_image_url(home: MindtouchHome):
     """Ensures proper image url is retrieved"""
     assert home.welcome_image_url == "https://cdn.libretexts.net/Logos/geo_full.png"
 
 
-def test_get_home_image_size(home: LibreTextsHome, home_png_size: int):
+def test_get_home_image_size(home: MindtouchHome, home_png_size: int):
     """Ensures image url is retrievable"""
     dst = io.BytesIO()
     stream_file(home.welcome_image_url, byte_stream=dst)
@@ -125,19 +125,19 @@ def test_get_home_image_size(home: LibreTextsHome, home_png_size: int):
 
 
 def test_get_home_welcome_text_paragraphs(
-    home: LibreTextsHome, home_welcome_text_paragraphs: list[str]
+    home: MindtouchHome, home_welcome_text_paragraphs: list[str]
 ):
     """Ensures proper data is retrieved from home of libretexts"""
 
     assert home.welcome_text_paragraphs == home_welcome_text_paragraphs
 
 
-def test_get_home_page_content(client: LibreTextsClient, page_tree: LibraryTree):
+def test_get_home_page_content(client: MindtouchClient, page_tree: LibraryTree):
     """Ensures we can get content of root page"""
     assert client.get_page_content(page_tree.root).html_body
 
 
-def test_get_home_screen_css_url(home: LibreTextsHome):
+def test_get_home_screen_css_url(home: MindtouchHome):
     """Ensures proper screen CSS url is retrieved"""
     assert re.match(
         r"https:\/\/a\.mtstatic\.com\/@cache\/layout\/anonymous\.css\?_=.*:site_4038",
@@ -145,7 +145,7 @@ def test_get_home_screen_css_url(home: LibreTextsHome):
     )
 
 
-def test_get_home_print_css_url(home: LibreTextsHome):
+def test_get_home_print_css_url(home: MindtouchHome):
     """Ensures proper print CSS url is retrieved"""
     assert re.match(
         r"https:\/\/a\.mtstatic\.com\/@cache\/layout\/print\.css\?_=.*:site_4038",
@@ -153,11 +153,11 @@ def test_get_home_print_css_url(home: LibreTextsHome):
     )
 
 
-def test_get_home_inline_css(home: LibreTextsHome):
+def test_get_home_inline_css(home: MindtouchHome):
     """Ensures proper print CSS url is retrieved"""
     assert len(home.inline_css) >= 10  # 13 expected as of Oct. 2024
     assert len("\n".join(home.inline_css)) >= 35000  # 39843 expected as of Oct. 2024
 
 
-def test_get_home_url(home: LibreTextsHome, libretexts_url: str):
+def test_get_home_url(home: MindtouchHome, libretexts_url: str):
     assert home.home_url == f"{libretexts_url}/"

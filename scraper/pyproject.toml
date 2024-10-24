@@ -3,9 +3,9 @@ requires = ["hatchling", "hatch-openzim==0.2.1"]
 build-backend = "hatchling.build"
 
 [project]
-name = "libretexts2zim"
+name = "mindtouch2zim"
 requires-python = ">=3.12,<3.13"
-description = "Make ZIM file from LibreTexts libraries"
+description = "Make ZIM file from Mindtouch / Nice CXone Expert libraries"
 readme = "../README.md"
 dependencies = [
   "yt-dlp",                      # youtube-dl should be updated as frequently as possible
@@ -30,7 +30,7 @@ allow-direct-references = true
 
 [tool.hatch.metadata.hooks.openzim-metadata]
 kind = "scraper"
-additional-keywords = ["libretexts"]
+additional-keywords = ["mindouch", "nice", "cxone", "expert"]
 
 [tool.hatch.build.hooks.openzim-build]
 
@@ -42,26 +42,26 @@ test = ["pytest==8.3.3", "coverage==7.6.1"]
 dev = [
   "pre-commit==3.8.0",
   "debugpy==1.8.5",
-  "libretexts2zim[scripts]",
-  "libretexts2zim[lint]",
-  "libretexts2zim[test]",
-  "libretexts2zim[check]",
+  "mindtouch2zim[scripts]",
+  "mindtouch2zim[lint]",
+  "mindtouch2zim[test]",
+  "mindtouch2zim[check]",
   "humanfriendly==10.0"
 ]
 
 [project.scripts]
-libretexts2zim = "libretexts2zim.__main__:main"
+mindtouch2zim = "mindtouch2zim.__main__:main"
 
 [tool.hatch.version]
-path = "src/libretexts2zim/__about__.py"
+path = "src/mindtouch2zim/__about__.py"
 
 [tool.hatch.build]
 exclude = ["/.github"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/libretexts2zim"]
+packages = ["src/mindtouch2zim"]
 artifacts = [
-  "src/libretexts2zim/templates/assets/**",
+  "src/mindtouch2zim/templates/assets/**",
 ]
 
 [tool.hatch.envs.default]
@@ -101,7 +101,7 @@ all = "inv checkall --args '{args}'"
 [tool.black]
 line-length = 88
 target-version = ['py312']
-exclude = "(src/libretexts2zim/templates/.*|.hatch/.*)"
+exclude = "(src/mindtouch2zim/templates/.*|.hatch/.*)"
 
 [tool.ruff]
 target-version = "py312"
@@ -194,7 +194,7 @@ unfixable = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["libretexts2zim"]
+known-first-party = ["mindtouch2zim"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -210,21 +210,21 @@ testpaths = ["tests"]
 pythonpath = [".", "src"]
 
 [tool.coverage.paths]
-great_project = ["src/libretexts2zim"]
+great_project = ["src/mindtouch2zim"]
 tests = ["tests"]
 
 [tool.coverage.run]
-source_pkgs = ["libretexts2zim"]
+source_pkgs = ["mindtouch2zim"]
 branch = true
 parallel = true
-omit = ["src/libretexts2zim/__about__.py"]
+omit = ["src/mindtouch2zim/__about__.py"]
 
 [tool.coverage.report]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 
 [tool.pyright]
 include = ["src", "tests", "tasks.py"]
-exclude = [".env/**", ".venv/**", "src/libretexts2zim/templates", ".hatch"]
+exclude = [".env/**", ".venv/**", "src/mindtouch2zim/templates", ".hatch"]
 extraPaths = ["src"]
 pythonVersion = "3.12"
 typeCheckingMode = "basic"

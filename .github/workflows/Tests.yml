@@ -99,10 +99,10 @@ jobs:
 
       - name: Build the Docker image
         run: |
-          docker build -t libretexts2zim .
+          docker build -t mindtouch2zim .
 
       - name: Run scraper
-        run: docker run -v $PWD/output:/output libretexts2zim libretexts2zim --library-slug geo --library-name Geosciences --root-page-id 28207 --file-name-format "tests_en_libretexts-geo"
+        run: docker run -v $PWD/output:/output mindtouch2zim mindtouch2zim --library-url https://geo.libretexts.org --name libretexts.org_en_geo --creator LibreTexts --title "LibreTexts Geosciences" --description "Geosciences courses from libretexts.org" --root-page-id 28207 --file-name "tests_en_libretexts-geo"
 
       - name: Run integration test suite
-        run: docker run -v $PWD/scraper/tests-integration:/src/scraper/tests-integration -v $PWD/output:/output -e ZIM_FILE_PATH=/output/tests_en_libretexts-geo.zim libretexts2zim bash -c "pip install pytest; pytest -v /src/scraper/tests-integration"
+        run: docker run -v $PWD/scraper/tests-integration:/src/scraper/tests-integration -v $PWD/output:/output -e ZIM_FILE_PATH=/output/tests_en_libretexts-geo.zim mindtouch2zim bash -c "pip install pytest; pytest -v /src/scraper/tests-integration"

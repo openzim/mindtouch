@@ -1,6 +1,6 @@
 import pytest
 
-from libretexts2zim.client import (
+from mindtouch2zim.client import (
     _get_soup,  # pyright: ignore[reportPrivateUsage]
     _get_welcome_text_from_home,  # pyright: ignore[reportPrivateUsage]
 )

@@ -1,7 +1,5 @@
-import datetime
 import json
 import re
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -9,17 +7,17 @@ import requests
 from bs4 import BeautifulSoup, NavigableString
 from pydantic import BaseModel
 
-from libretexts2zim.constants import logger
+from mindtouch2zim.constants import logger
 
 HTTP_TIMEOUT_NORMAL_SECONDS = 15
 HTTP_TIMEOUT_LONG_SECONDS = 30
 
 
-class LibreTextsParsingError(Exception):
+class MindtouchParsingError(Exception):
     pass
 
 
-class LibreTextsHome(BaseModel):
+class MindtouchHome(BaseModel):
     home_url: str
     welcome_text_paragraphs: list[str]
     welcome_image_url: str
@@ -85,50 +83,19 @@ class LibraryTree(BaseModel):
         return tree
 
 
-class LibreTextsMetadata(BaseModel):
-    """Metadata about a library."""
+class MindtouchClient:
+    """Utility functions to read data from mindtouch instance."""
 
-    # Human readable name for the library.
-    name: str
-
-    # URL prefix for the library, e.g. for Geosciences which is at
-    # https://geo.libretexts.org/, the slug is `geo`
-    slug: str
-
-    def placeholders(
-        self, clock: Callable[[], datetime.date] = datetime.date.today
-    ) -> dict[str, str]:
-        """Gets placeholders for filenames.
-
-        Arguments:
-          clock: Override the default clock to use for producing the "period".
-        """
-
-        return {
-            "name": self.name,
-            "slug": self.slug,
-            "clean_slug": re.sub(r"[^.a-zA-Z0-9]", "-", self.slug),
-            "period": clock().strftime("%Y-%m"),
-        }
-
-
-class LibreTextsClient:
-    """Utility functions to read data from libretexts."""
-
-    def __init__(self, library_slug: str, cache_folder: Path) -> None:
-        """Initializes LibreTextsClient.
+    def __init__(self, library_url: str, cache_folder: Path) -> None:
+        """Initializes MindtouchClient.
 
         Paremters:
-            library_url: Scheme, hostname, and port for the Libretext library
-                e.g. `https://geo.libretexts.org/`.
+            library_url: Scheme and hostname for the Libretext library
+                e.g. `https://geo.libretexts.org`.
         """
-        self.library_slug = library_slug
+        self.library_url = library_url
         self.deki_token = None
         self.cache_folder = cache_folder
-
-    @property
-    def library_url(self) -> str:
-        return f"https://{self.library_slug}.libretexts.org"
 
     @property
     def api_url(self) -> str:
@@ -201,13 +168,13 @@ class LibreTextsClient:
         cache_file.write_bytes(result)
         return result
 
-    def get_home(self) -> LibreTextsHome:
+    def get_home(self) -> MindtouchHome:
         """Retrieves data about home page by crawling home page"""
         home_content = self._get_text("/")
 
         soup = _get_soup(home_content)
         self.deki_token = _get_deki_token_from_home(soup)
-        return LibreTextsHome(
+        return MindtouchHome(
             welcome_text_paragraphs=_get_welcome_text_from_home(soup),
             welcome_image_url=_get_welcome_image_url_from_home(soup),
             screen_css_url=_get_screen_css_url_from_home(soup),
@@ -300,20 +267,20 @@ class LibreTextsClient:
             f"/pages/{page.id}/contents", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
         )
         if not isinstance(tree["body"][0], str):
-            raise LibreTextsParsingError(
+            raise MindtouchParsingError(
                 f"First body element of /pages/{page.id}/contents is not a string"
             )
         if not isinstance(tree["body"][1], dict):
-            raise LibreTextsParsingError(
+            raise MindtouchParsingError(
                 f"Second body element of /pages/{page.id}/contents is not a dict"
             )
         if "@target" not in tree["body"][1]:
-            raise LibreTextsParsingError(
+            raise MindtouchParsingError(
                 f"Unexpected second body element of /pages/{page.id}/contents, "
                 "no @target property"
             )
         if tree["body"][1]["@target"] != "toc":
-            raise LibreTextsParsingError(
+            raise MindtouchParsingError(
                 f"Unexpected second body element of /pages/{page.id}/contents, "
                 f"@target property is '{tree['body'][1]['@target']}' while only 'toc' "
                 "is expected"
@@ -333,17 +300,17 @@ def _get_welcome_image_url_from_home(soup: BeautifulSoup) -> str:
     """Return the URL of the image found on home header"""
     branding_div = soup.find("div", class_="LTBranding")
     if not branding_div:
-        raise LibreTextsParsingError("<div> with class 'LTBranding' not found")
+        raise MindtouchParsingError("<div> with class 'LTBranding' not found")
     img_tag = branding_div.find("img")
     if not img_tag or isinstance(img_tag, int) or isinstance(img_tag, NavigableString):
-        raise LibreTextsParsingError("<img> not found in <div> with class 'LTBranding'")
+        raise MindtouchParsingError("<img> not found in <div> with class 'LTBranding'")
     img_src = img_tag["src"]
     if not img_src:
-        raise LibreTextsParsingError(
+        raise MindtouchParsingError(
             "<img> in <div> with class 'LTBranding' has no src attribute"
         )
     if isinstance(img_src, list):
-        raise LibreTextsParsingError(
+        raise MindtouchParsingError(
             "<img> in <div> with class 'LTBranding' has too many src attribute"
         )
     return img_src
@@ -353,7 +320,7 @@ def _get_welcome_text_from_home(soup: BeautifulSoup) -> list[str]:
     """Returns the text found on home page"""
     content_section = soup.find("section", class_="mt-content-container")
     if not content_section or isinstance(content_section, NavigableString):
-        raise LibreTextsParsingError(
+        raise MindtouchParsingError(
             "<section> with class 'mt-content-container' not found"
         )
     welcome_text: list[str] = []
@@ -391,12 +358,12 @@ def _get_any_css_url_from_home(soup: BeautifulSoup, media: str) -> str:
     """
     links = soup.find_all("link", {"rel": "stylesheet", "media": media})
     if len(links) != 1:
-        raise LibreTextsParsingError(
+        raise MindtouchParsingError(
             f"Failed to find {media} CSS URL in home page, {len(links)} link(s) found"
         )
     css_url = links[0].get("href", None)
     if not css_url:
-        raise LibreTextsParsingError("screen CSS link has no href")
+        raise MindtouchParsingError("screen CSS link has no href")
     return css_url
 
 

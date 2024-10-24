@@ -1,11 +1,6 @@
 import argparse
 
 from pydantic import BaseModel
-from zimscraperlib.constants import (
-    MAXIMUM_DESCRIPTION_METADATA_LENGTH,
-    MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH,
-    RECOMMENDED_MAX_TITLE_LENGTH,
-)
 
 
 class InvalidFormatError(Exception):
@@ -17,22 +12,20 @@ class InvalidFormatError(Exception):
 class ZimConfig(BaseModel):
     """Common configuration for building ZIM files."""
 
-    # Displayable name for library, e.g. Geosciences
-    library_name: str
     # File name for the ZIM.
-    file_name_format: str
+    file_name: str
     # Name for the ZIM.
-    name_format: str
+    name: str
     # Human readable title for the ZIM.
-    title_format: str
+    title: str
     # Publisher for the ZIM.
     publisher: str
     # Creator of the content in the ZIM.
     creator: str
     # Short description for the ZIM.
-    description_format: str
+    description: str
     # Long description for the ZIM.
-    long_description_format: str | None
+    long_description: str | None
     # Semicolon delimited list of tags to apply to the ZIM.
     tags: str
     # Secondary (background) color of ZIM UI
@@ -61,40 +54,16 @@ class ZimConfig(BaseModel):
                     f"valid placeholders are: {valid_placeholders}"
                 ) from e
 
-        def check_length(string: str, field_name: str, length: int) -> str:
-            if len(string) > length:
-                raise ValueError(
-                    f"{field_name} '{string[:15]}…' ({len(string)} chars) "
-                    f"is longer than the allowed {length} chars"
-                )
-
-            return string
-
         return ZimConfig(
             secondary_color=self.secondary_color,
-            library_name=self.library_name,
-            file_name_format=fmt(self.file_name_format),
-            name_format=fmt(self.name_format),
-            title_format=check_length(
-                fmt(self.title_format),
-                "formatted title",
-                RECOMMENDED_MAX_TITLE_LENGTH,
-            ),
+            file_name=fmt(self.file_name),
+            name=fmt(self.name),
+            title=fmt(self.title),
             publisher=self.publisher,
             creator=self.creator,
-            description_format=check_length(
-                fmt(self.description_format),
-                "formatted description",
-                MAXIMUM_DESCRIPTION_METADATA_LENGTH,
-            ),
-            long_description_format=(
-                check_length(
-                    fmt(self.long_description_format),
-                    "formatted long description",
-                    MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH,
-                )
-                if self.long_description_format
-                else None
+            description=fmt(self.description),
+            long_description=(
+                fmt(self.long_description) if self.long_description else None
             ),
             tags=fmt(self.tags),
         )

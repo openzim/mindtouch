@@ -15,12 +15,12 @@ jobs:
       - name: Build and push Docker image
         uses: openzim/docker-publish-action@v10
         with:
-          image-name: openzim/libretexts
+          image-name: openzim/mindtouch
           manual-tag: dev
           latest-on-tag: false
-          restrict-to: openzim/libretexts
+          restrict-to: openzim/mindtouch
           registries: ghcr.io
-          credentials:
+          credentials: |
             GHCRIO_USERNAME=${{ secrets.GHCR_USERNAME }}
             GHCRIO_TOKEN=${{ secrets.GHCR_TOKEN }}
           repo_description: auto
