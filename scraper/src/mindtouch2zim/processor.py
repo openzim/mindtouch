@@ -582,7 +582,7 @@ def rewrite_href_src_attributes(
     if attr_name not in ("href", "src") or not attr_value:
         return
     if not isinstance(url_rewriter, HtmlUrlsRewriter):
-        raise Exception("Expecting MindtouchUrlRewriter")
+        raise Exception("Expecting HtmlUrlsRewriter")
     new_attr_value = None
     if tag == "a":
         rewrite_result = url_rewriter(
@@ -601,17 +601,7 @@ def rewrite_href_src_attributes(
         )
         # add 'content/' to the URL since all assets will be stored in the sub.-path
         new_attr_value = f"content/{rewrite_result.rewriten_url}"
-        if rewrite_result.zim_path is not None:
-            # if item is expected to be inside the ZIM, store asset information so that
-            # we can download it afterwards
-            if rewrite_result.zim_path in url_rewriter.items_to_download:
-                url_rewriter.items_to_download[rewrite_result.zim_path].add(
-                    HttpUrl(rewrite_result.absolute_url)
-                )
-            else:
-                url_rewriter.items_to_download[rewrite_result.zim_path] = {
-                    HttpUrl(rewrite_result.absolute_url)
-                }
+        url_rewriter.add_item_to_download(rewrite_result)
     if not new_attr_value:
         # we do not (yet) support other tags / attributes so we fail the scraper
         raise ValueError(
@@ -658,6 +648,20 @@ class HtmlUrlsRewriter(ArticleUrlRewriter):
     ) -> RewriteResult:
         result = super().__call__(item_url, base_href, rewrite_all_url=rewrite_all_url)
         return result
+
+    def add_item_to_download(self, rewrite_result: RewriteResult):
+        """Add item to download based on rewrite result"""
+        if rewrite_result.zim_path is not None:
+            # if item is expected to be inside the ZIM, store asset information so that
+            # we can download it afterwards
+            if rewrite_result.zim_path in self.items_to_download:
+                self.items_to_download[rewrite_result.zim_path].add(
+                    HttpUrl(rewrite_result.absolute_url)
+                )
+            else:
+                self.items_to_download[rewrite_result.zim_path] = {
+                    HttpUrl(rewrite_result.absolute_url)
+                }
 
 
 class CssUrlsRewriter(ArticleUrlRewriter):
