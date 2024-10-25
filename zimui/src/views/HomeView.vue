@@ -37,6 +37,9 @@ watch(
   () => (main.shared ? route.params.pathMatch : undefined),
   () => {
     page.value = getPage()
+    if (page.value) {
+      document.title = page.value.title
+    }
   }
 )
 </script>
