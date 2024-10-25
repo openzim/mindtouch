@@ -1,0 +1,15 @@
+a[href^="http://"]:after,
+a[href^="https://"]:after
+{
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-image: url('external-link.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  margin-left: 5px;
+  position: relative;
+  bottom: 0px;
+  right: 0px;
+}
