@@ -14,6 +14,7 @@ from zimscraperlib.rewriting.css import CssRewriter
 from zimscraperlib.rewriting.url_rewriting import (
     ArticleUrlRewriter,
     HttpUrl,
+    RewriteResult,
     ZimPath,
 )
 from zimscraperlib.zim import Creator
@@ -313,7 +314,7 @@ class Processor:
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
-            self.items_to_download: dict[ZimPath, HttpUrl] = {}
+            self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
             self._process_css(
                 css_location=home.screen_css_url,
                 target_filename="screen.css",
@@ -356,23 +357,25 @@ class Processor:
                 self._process_page(creator=creator, page=page)
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
-            for asset_path, asset_url in self.items_to_download.items():
-                try:
-                    asset_content = BytesIO()
-                    stream_file(asset_url.value, byte_stream=asset_content)
-                    logger.debug(
-                        f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
-                    )
-                    add_item_for(
-                        creator,
-                        "content/" + asset_path.value,
-                        content=asset_content.getvalue(),
-                    )
-                except HTTPError as exc:
-                    # would make more sense to be a warning, but this is just too
-                    # verbose, at least on geo.libretexts.org many assets are just
-                    # missing
-                    logger.debug(f"Ignoring {asset_path.value} due to {exc}")
+            for asset_path, asset_urls in self.items_to_download.items():
+                for asset_url in asset_urls:
+                    try:
+                        asset_content = BytesIO()
+                        stream_file(asset_url.value, byte_stream=asset_content)
+                        logger.debug(
+                            f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
+                        )
+                        add_item_for(
+                            creator,
+                            "content/" + asset_path.value,
+                            content=asset_content.getvalue(),
+                        )
+                        break  # file found and added
+                    except HTTPError as exc:
+                        # would make more sense to be a warning, but this is just too
+                        # verbose, at least on geo.libretexts.org many assets are just
+                        # missing
+                        logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
         return zim_path
 
@@ -392,20 +395,23 @@ class Processor:
             css_buffer = BytesIO()
             stream_file(css_location, byte_stream=css_buffer)
             css_content = css_buffer.getvalue()
-        url_rewriter = ArticleUrlRewriter(
+        url_rewriter = CssUrlsRewriter(
             article_url=HttpUrl(css_location),
             article_path=ZimPath(target_filename),
         )
-        css_rewriter = CssRewriter(url_rewriter=url_rewriter, base_href=None)
+        css_rewriter = CssRewriter(
+            url_rewriter=url_rewriter, base_href=None, remove_errors=True
+        )
         result = css_rewriter.rewrite(content=css_content)
         # Rebuild the dict since we might have "conflict" of ZimPath (two urls leading
         # to the same ZimPath) and we prefer to use the first URL encountered, where
         # using self.items_to_download.update while override the key value, prefering
         # to use last URL encountered.
-        self.items_to_download = {
-            **self.items_to_download,
-            **url_rewriter.items_to_download,
-        }
+        for path, urls in url_rewriter.items_to_download.items():
+            if path in self.items_to_download:
+                self.items_to_download[path].update(urls)
+            else:
+                self.items_to_download[path] = urls
         add_item_for(creator, f"content/{target_filename}", content=result)
 
     def _process_page(self, creator: Creator, page: LibraryPage):
@@ -421,3 +427,34 @@ class Processor:
                 by_alias=True
             ),
         )
+
+
+class CssUrlsRewriter(ArticleUrlRewriter):
+
+    def __init__(
+        self,
+        *,
+        article_url: HttpUrl,
+        article_path: ZimPath,
+    ):
+        super().__init__(
+            article_url=article_url,
+            article_path=article_path,
+        )
+        self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+
+    def __call__(
+        self,
+        item_url: str,
+        base_href: str | None,
+        *,
+        rewrite_all_url: bool = True,  # noqa: ARG002
+    ) -> RewriteResult:
+        result = super().__call__(item_url, base_href, rewrite_all_url=True)
+        if result.zim_path is None:
+            return result
+        if result.zim_path in self.items_to_download:
+            self.items_to_download[result.zim_path].add(HttpUrl(result.absolute_url))
+        else:
+            self.items_to_download[result.zim_path] = {HttpUrl(result.absolute_url)}
+        return result
