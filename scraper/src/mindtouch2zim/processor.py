@@ -15,7 +15,7 @@ from zimscraperlib.image import convert_image, resize_image
 from zimscraperlib.image.conversion import convert_svg2png
 from zimscraperlib.image.probing import format_for
 from zimscraperlib.rewriting.css import CssRewriter
-from zimscraperlib.rewriting.html import HtmlRewriter
+from zimscraperlib.rewriting.html import AttrsList, HtmlRewriter, get_attr_value_from
 from zimscraperlib.rewriting.html import rules as html_rules
 from zimscraperlib.rewriting.url_rewriting import (
     ArticleUrlRewriter,
@@ -41,6 +41,7 @@ from mindtouch2zim.ui import (
     PageModel,
     SharedModel,
 )
+from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 from mindtouch2zim.zimconfig import ZimConfig
 
 
@@ -622,6 +623,66 @@ def refuse_unsupported_tags(tag: str):
     if tag not in ["picture"]:
         return
     raise UnsupportedTagError(f"Tag {tag} is not yet supported in this scraper")
+
+
+YOUTUBE_IFRAME_RE = re.compile(r".*youtube(?:-\w+)*\.\w+\/embed\/(?P<id>.*?)(?:\?.*)*$")
+VIMEO_IFRAME_RE = re.compile(r".*vimeo(?:-\w+)*\.\w+\/video\/(?:.*?)(?:\?.*)*$")
+
+
+@html_rules.rewrite_tag()
+def rewrite_iframe_tags(
+    tag: str,
+    attrs: AttrsList,
+    base_href: str | None,
+    url_rewriter: ArticleUrlRewriter,
+):
+    """Rewrite youtube and vimeo iframes to remove player until video is included"""
+    if tag not in ["iframe"]:
+        return
+    if not isinstance(url_rewriter, HtmlUrlsRewriter):
+        raise Exception("Expecting HtmlUrlsRewriter")
+    src = get_attr_value_from(attrs=attrs, name="src")
+    if not src:
+        raise UnsupportedTagError("Unsupported empty src in iframe")
+    image_rewriten_url = None
+    try:
+        if ytb_match := YOUTUBE_IFRAME_RE.match(src):
+            rewrite_result = url_rewriter(
+                f'https://i.ytimg.com/vi/{ytb_match.group("id")}/hqdefault.jpg',
+                base_href=base_href,
+            )
+            url_rewriter.add_item_to_download(rewrite_result)
+            image_rewriten_url = rewrite_result.rewriten_url
+        if VIMEO_IFRAME_RE.match(src):
+            rewrite_result = url_rewriter(
+                get_vimeo_thumbnail_url(src),
+                base_href=base_href,
+            )
+            url_rewriter.add_item_to_download(rewrite_result)
+            image_rewriten_url = rewrite_result.rewriten_url
+    except Exception as exc:
+        logger.warning(f"Failed to rewrite iframe with src {src}", exc_info=exc)
+        return (
+            f'<a href="{src}" target="_blank">'
+            f"<div>"
+            f"{src}"
+            "</div>"
+            "</a>"
+            '<iframe style="display: none;">'  # fake opening tag just to remove iframe
+        )
+
+    if image_rewriten_url:
+        return (
+            f'<a href="{src}" target="_blank">'
+            f'<div class="zim-removed-video">'
+            f'<img src="content/{image_rewriten_url}">'
+            "</img>"
+            "</div>"
+            "</a>"
+            '<iframe style="display: none;">'  # fake opening tag just to remove iframe
+        )
+
+    raise UnsupportedTagError(f"Unsupported src {src} in iframe")
 
 
 class HtmlUrlsRewriter(ArticleUrlRewriter):
