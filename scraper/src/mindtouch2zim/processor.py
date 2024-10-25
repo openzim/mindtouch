@@ -1,11 +1,13 @@
 import argparse
 import datetime
+import json
 import re
 from io import BytesIO
 from pathlib import Path
 
 from pydantic import BaseModel
 from requests.exceptions import HTTPError
+from schedule import every, run_pending
 from zimscraperlib.download import (
     stream_file,  # pyright: ignore[reportUnknownVariableType]
 )
@@ -171,6 +173,7 @@ class Processor:
         content_filter: ContentFilter,
         output_folder: Path,
         zimui_dist: Path,
+        stats_file: Path | None,
         *,
         overwrite_existing_zim: bool,
     ) -> None:
@@ -182,6 +185,7 @@ class Processor:
             content_filter: User supplied filter selecting with content to convert.
             output_folder: Directory to write ZIMs into.
             zimui_dist: Build directory where Vite placed compiled Vue.JS frontend.
+            stats_file: Path where JSON task progress while be saved.
             overwrite_existing_zim: Do not fail if ZIM already exists, overwrite it.
         """
         self.mindtouch_client = mindtouch_client
@@ -189,7 +193,15 @@ class Processor:
         self.content_filter = content_filter
         self.output_folder = output_folder
         self.zimui_dist = zimui_dist
+        self.stats_file = stats_file
         self.overwrite_existing_zim = overwrite_existing_zim
+
+        self.stats_items_done = 0
+        # we add 1 more items to process so that progress is not 100% at the beginning
+        # when we do not yet know how many items we have to process and so that we can
+        # increase counter at the beginning of every for loop, not minding about what
+        # could happen in the loop in terms of exit conditions
+        self.stats_items_total = 1
 
         self.zim_illustration_path = self.libretexts_newsite_path(
             "header_logo_mini.png"
@@ -212,6 +224,12 @@ class Processor:
         Returns the path to the gernated ZIM.
         """
         logger.info("Generating ZIM")
+
+        # create first progress report and and a timer to update every 10 seconds
+        self._report_progress()
+        every(10).seconds.do(  # pyright: ignore[reportUnknownMemberType]
+            self._report_progress
+        )
 
         formatted_config = self.zim_config.format(
             {
@@ -274,8 +292,14 @@ class Processor:
                 ).model_dump_json(by_alias=True),
             )
 
-            logger.info(f"Adding Vue.JS UI files in {self.zimui_dist}")
+            count_zimui_files = len(list(self.zimui_dist.rglob("*")))
+            logger.info(
+                f"Adding {count_zimui_files} Vue.JS UI files in {self.zimui_dist}"
+            )
+            self.stats_items_total += count_zimui_files
             for file in self.zimui_dist.rglob("*"):
+                self.stats_items_done += 1
+                run_pending()
                 if file.is_dir():
                     continue
                 path = str(Path(file).relative_to(self.zimui_dist))
@@ -301,8 +325,12 @@ class Processor:
                     )
 
             mathjax = (Path(__file__) / "../mathjax").resolve()
-            logger.info(f"Adding MathJax files in {mathjax}")
+            count_mathjax_files = len(list(mathjax.rglob("*")))
+            self.stats_items_total += count_mathjax_files
+            logger.info(f"Adding {count_mathjax_files} MathJax files in {mathjax}")
             for file in mathjax.rglob("*"):
+                self.stats_items_done += 1
+                run_pending()
                 if not file.is_file():
                     continue
                 path = str(Path(file).relative_to(mathjax.parent))
@@ -363,6 +391,7 @@ class Processor:
             logger.info("Fetching pages content")
             # compute the list of existing pages to properly rewrite links leading
             # in-ZIM / out-of-ZIM
+            self.stats_items_total += len(selected_pages)
             existing_html_pages = {
                 ArticleUrlRewriter.normalize(
                     HttpUrl(f"{self.mindtouch_client.library_url}/{page.path}")
@@ -370,12 +399,17 @@ class Processor:
                 for page in selected_pages
             }
             for page in selected_pages:
+                self.stats_items_done += 1
+                run_pending()
                 self._process_page(
                     creator=creator, page=page, existing_zim_paths=existing_html_pages
                 )
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
+            self.stats_items_total += len(self.items_to_download)
             for asset_path, asset_urls in self.items_to_download.items():
+                self.stats_items_done += 1
+                run_pending()
                 for asset_url in asset_urls:
                     try:
                         asset_content = BytesIO()
@@ -394,6 +428,11 @@ class Processor:
                         # verbose, at least on geo.libretexts.org many assets are just
                         # missing
                         logger.debug(f"Ignoring {asset_path.value} due to {exc}")
+
+        # same reason than self.stats_items_done = 1 at the beginning, we need to add
+        # a final item to complete the progress
+        self.stats_items_done += 1
+        self._report_progress()
 
         return zim_path
 
@@ -464,6 +503,18 @@ class Processor:
                 by_alias=True
             ),
         )
+
+    def _report_progress(self):
+        """report progress to stats file"""
+
+        logger.info(f"  Progress {self.stats_items_done} / {self.stats_items_total}")
+        if not self.stats_file:
+            return
+        progress = {
+            "done": self.stats_items_done,
+            "total": self.stats_items_total,
+        }
+        self.stats_file.write_text(json.dumps(progress, indent=2))
 
 
 # remove all standard rules, they are not adapted to Vue.JS UI

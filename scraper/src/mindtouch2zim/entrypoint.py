@@ -206,6 +206,12 @@ def main(tmpdir: str) -> None:
         default=False,
     )
 
+    parser.add_argument(
+        "--stats-filename",
+        help="Path to store the progress JSON file to.",
+        dest="stats_filename",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -238,6 +244,7 @@ def main(tmpdir: str) -> None:
             output_folder=Path(args.output_folder),
             zimui_dist=Path(args.zimui_dist),
             content_filter=doc_filter,
+            stats_file=Path(args.stats_filename) if args.stats_filename else None,
             overwrite_existing_zim=args.overwrite,
         ).run()
     except SystemExit:
