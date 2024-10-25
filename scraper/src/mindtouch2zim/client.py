@@ -24,6 +24,7 @@ class MindtouchHome(BaseModel):
     screen_css_url: str
     print_css_url: str
     inline_css: list[str]
+    icons_urls: list[str]
 
 
 LibraryPageId = str
@@ -181,6 +182,7 @@ class MindtouchClient:
             print_css_url=_get_print_css_url_from_home(soup),
             inline_css=_get_inline_css_from_home(soup),
             home_url=f"{self.library_url}/",
+            icons_urls=_get_icons_urls(soup),
         )
 
     def get_deki_token(self) -> str:
@@ -381,3 +383,14 @@ def _get_inline_css_from_home(soup: BeautifulSoup) -> list[str]:
     """Returns inline CSS code found on home page"""
     links = soup.find_all("style", {"type": "text/css"})
     return [link.text for link in links if link.text]
+
+
+def _get_icons_urls(soup: BeautifulSoup) -> list[str]:
+    """Returns list of potential icons"""
+    # prefer apple-touch-icon since they are usually bigger than the classic 32x32
+    # favicon which is ugly once upscaled to 48x48 which is what we need for the ZIM
+    # illustration
+    links = soup.find_all("link", {"rel": "apple-touch-icon"}) + soup.find_all(
+        "link", {"rel": "icon"}
+    )
+    return [link.get("href", None) for link in links if link.get("href", None)]
