@@ -331,26 +331,6 @@ class Processor:
                 creator=creator,
             )
 
-            logger.info(f"  Retrieving {len(self.items_to_download)} CSS assets...")
-            for asset_path, asset_url in self.items_to_download.items():
-                try:
-                    css_asset = BytesIO()
-                    stream_file(asset_url.value, byte_stream=css_asset)
-                    logger.debug(
-                        f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
-                    )
-                    add_item_for(
-                        creator,
-                        "content/" + asset_path.value,
-                        content=css_asset.getvalue(),
-                    )
-                    del css_asset
-                except HTTPError as exc:
-                    # would make more sense to be a warning, but this is just too
-                    # verbose, at least on geo.libretexts.org many assets are just
-                    # missing
-                    logger.debug(f"Ignoring {asset_path.value} due to {exc}")
-
             logger.info("Fetching pages tree")
             pages_tree = self.mindtouch_client.get_page_tree()
             selected_pages = self.content_filter.filter(pages_tree)
@@ -374,6 +354,25 @@ class Processor:
             logger.info("Fetching pages content")
             for page in selected_pages:
                 self._process_page(creator=creator, page=page)
+
+            logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
+            for asset_path, asset_url in self.items_to_download.items():
+                try:
+                    asset_content = BytesIO()
+                    stream_file(asset_url.value, byte_stream=asset_content)
+                    logger.debug(
+                        f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
+                    )
+                    add_item_for(
+                        creator,
+                        "content/" + asset_path.value,
+                        content=asset_content.getvalue(),
+                    )
+                except HTTPError as exc:
+                    # would make more sense to be a warning, but this is just too
+                    # verbose, at least on geo.libretexts.org many assets are just
+                    # missing
+                    logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
         return zim_path
 
