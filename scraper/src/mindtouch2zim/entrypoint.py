@@ -152,8 +152,9 @@ def main(tmpdir: str) -> None:
     # Client configuration flags
     parser.add_argument(
         "--library-url",
-        help="URL of the Mindtouch / Nice CXone Expert instance, e.g. for LibreTexts "
-        "Geosciences it is https://geo.libretexts.org/",
+        help="URL of the Mindtouch / Nice CXone Expert instance (must NOT contain "
+        "trailing slash), e.g. for LibreTexts Geosciences it is "
+        "https://geo.libretexts.org",
         required=True,
     )
 
@@ -217,6 +218,8 @@ def main(tmpdir: str) -> None:
     tmp_folder.mkdir(exist_ok=True)
     validate_zimfile_creatable(tmp_folder, "test.txt")
 
+    library_url = str(args.library_url).rstrip("/")
+
     try:
         zim_config = ZimConfig.of(args)
         doc_filter = ContentFilter.of(args)
@@ -225,7 +228,7 @@ def main(tmpdir: str) -> None:
         cache_folder.mkdir(exist_ok=True)
 
         mindtouch_client = MindtouchClient(
-            library_url=args.library_url,
+            library_url=library_url,
             cache_folder=cache_folder,
         )
 
