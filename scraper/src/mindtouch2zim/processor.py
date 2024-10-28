@@ -11,7 +11,9 @@ from schedule import every, run_pending
 from zimscraperlib.download import (
     stream_file,  # pyright: ignore[reportUnknownVariableType]
 )
-from zimscraperlib.image import resize_image
+from zimscraperlib.image import convert_image, resize_image
+from zimscraperlib.image.conversion import convert_svg2png
+from zimscraperlib.image.probing import format_for
 from zimscraperlib.rewriting.css import CssRewriter
 from zimscraperlib.rewriting.html import HtmlRewriter
 from zimscraperlib.rewriting.html import rules as html_rules
@@ -30,8 +32,9 @@ from mindtouch2zim.client import (
     LibraryPageId,
     LibraryTree,
     MindtouchClient,
+    MindtouchHome,
 )
-from mindtouch2zim.constants import LANGUAGE_ISO_639_3, NAME, ROOT_DIR, VERSION, logger
+from mindtouch2zim.constants import LANGUAGE_ISO_639_3, NAME, VERSION, logger
 from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -55,6 +58,12 @@ class MissingDocumentError(Exception):
 
 class UnsupportedTagError(Exception):
     """An exception raised when an HTML tag is not expected to be encountered"""
+
+    pass
+
+
+class NoIllustrationFoundError(Exception):
+    """An exception raised when no suitable illustration has been found"""
 
     pass
 
@@ -174,6 +183,7 @@ class Processor:
         output_folder: Path,
         zimui_dist: Path,
         stats_file: Path | None,
+        illustration_url: str | None,
         *,
         overwrite_existing_zim: bool,
     ) -> None:
@@ -195,6 +205,7 @@ class Processor:
         self.zimui_dist = zimui_dist
         self.stats_file = stats_file
         self.overwrite_existing_zim = overwrite_existing_zim
+        self.illustration_url = illustration_url
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning
@@ -202,21 +213,6 @@ class Processor:
         # increase counter at the beginning of every for loop, not minding about what
         # could happen in the loop in terms of exit conditions
         self.stats_items_total = 1
-
-        self.zim_illustration_path = self.libretexts_newsite_path(
-            "header_logo_mini.png"
-        )
-
-    @staticmethod
-    def libretexts_newsite_path(name: str) -> Path:
-        """Returns the path to name in the third_party/libretexts_newsite folder.
-
-        Raises ValueError if the resource doesn't exist.
-        """
-        path = ROOT_DIR.joinpath("third_party", "libretexts_newsite", name)
-        if not path.exists():
-            raise ValueError(f"File not found at {path}")
-        return path
 
     def run(self) -> Path:
         """Generates a zim for a single document.
@@ -253,15 +249,11 @@ class Processor:
 
         creator = Creator(zim_path, "index.html")
 
-        logger.debug("Resizing ZIM illustration")
-        zim_illustration = BytesIO()
-        resize_image(
-            src=self.zim_illustration_path,
-            dst=zim_illustration,
-            width=48,
-            height=48,
-            method="cover",
-        )
+        logger.info("  Fetching and storing home page...")
+        home = self.mindtouch_client.get_home()
+
+        logger.info("  Fetching ZIM illustration...")
+        zim_illustration = self._fetch_zim_illustration(home)
 
         logger.debug("Configuring metadata")
         creator.config_metadata(
@@ -278,10 +270,18 @@ class Processor:
             Scraper=f"{NAME} v{VERSION}",
             Illustration_48x48_at_1=zim_illustration.getvalue(),
         )
-        del zim_illustration
 
         # Start creator early to detect problems early.
         with creator as creator:
+
+            add_item_for(
+                creator,
+                "favicon.ico",
+                content=self._fetch_favicon_from_illustration(
+                    zim_illustration
+                ).getvalue(),
+            )
+            del zim_illustration
 
             logger.info("  Storing configuration...")
             add_item_for(
@@ -341,9 +341,6 @@ class Processor:
                     fpath=file,
                     is_front=False,
                 )
-
-            logger.info("  Fetching and storing home page...")
-            home = self.mindtouch_client.get_home()
 
             welcome_image = BytesIO()
             stream_file(home.welcome_image_url, byte_stream=welcome_image)
@@ -515,6 +512,56 @@ class Processor:
             "total": self.stats_items_total,
         }
         self.stats_file.write_text(json.dumps(progress, indent=2))
+
+    def _fetch_zim_illustration(self, home: MindtouchHome) -> BytesIO:
+        """Fetch ZIM illustration, convert/resize and return it"""
+        for icon_url in (
+            [self.illustration_url] if self.illustration_url else home.icons_urls
+        ):
+            try:
+                logger.debug(f"Downloading {icon_url} illustration")
+                illustration_content = BytesIO()
+                stream_file(icon_url, byte_stream=illustration_content)
+                illustration_format = format_for(
+                    illustration_content, from_suffix=False
+                )
+                png_illustration = BytesIO()
+                if illustration_format == "SVG":
+                    logger.debug("Converting SVG illustration to PNG")
+                    convert_svg2png(illustration_content, png_illustration, 48, 48)
+                elif illustration_format == "PNG":
+                    png_illustration = illustration_content
+                else:
+                    logger.debug(
+                        f"Converting {illustration_format} illustration to PNG"
+                    )
+                    convert_image(illustration_content, png_illustration, fmt="PNG")
+                logger.debug("Resizing ZIM illustration")
+                resize_image(
+                    src=png_illustration,
+                    width=48,
+                    height=48,
+                    method="cover",
+                )
+                return png_illustration
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to retrieve illustration at {icon_url}", exc_info=exc
+                )
+        raise NoIllustrationFoundError("Failed to find a suitable illustration")
+
+    def _fetch_favicon_from_illustration(self, illustration: BytesIO) -> BytesIO:
+        """Return a converted version of the illustration into favicon"""
+        favicon = BytesIO()
+        convert_image(illustration, favicon, fmt="ICO")
+        logger.debug("Resizing ZIM illustration")
+        resize_image(
+            src=favicon,
+            width=32,
+            height=32,
+            method="cover",
+        )
+        return favicon
 
 
 # remove all standard rules, they are not adapted to Vue.JS UI

@@ -38,3 +38,11 @@ def home_welcome_text_paragraphs() -> list[str]:
         "revision by students, faculty, and outside experts to supplant conventional "
         "paper-based books."
     ]
+
+
+@pytest.fixture(scope="module")
+def home_icons_urls() -> list[str]:
+    return [
+        "https://a.mtstatic.com/@public/production/site_4038/1486479235-apple-touch-icon.png",
+        "https://a.mtstatic.com/@public/production/site_4038/1486479325-favicon.ico",
+    ]

@@ -18,14 +18,16 @@ onMounted(async () => {
 
 <template>
   <div class="header-bar">
-    <v-img
-      :lazy-src="logoPlaceholder"
-      :src="main.shared?.logoPath"
-      alt="LibreTexts logo"
-      class="logo"
-      width="auto"
-      height="70"
-    />
+    <router-link to="/">
+      <v-img
+        :lazy-src="logoPlaceholder"
+        :src="main.shared?.logoPath"
+        alt="LibreTexts logo"
+        class="logo"
+        width="auto"
+        height="70"
+      />
+    </router-link>
   </div>
 </template>
 

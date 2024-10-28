@@ -212,6 +212,12 @@ def main(tmpdir: str) -> None:
         dest="stats_filename",
     )
 
+    parser.add_argument(
+        "--illustration-url",
+        help="URL to illustration to use for ZIM illustration and favicon",
+        dest="illustration_url",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -246,6 +252,7 @@ def main(tmpdir: str) -> None:
             content_filter=doc_filter,
             stats_file=Path(args.stats_filename) if args.stats_filename else None,
             overwrite_existing_zim=args.overwrite,
+            illustration_url=args.illustration_url,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

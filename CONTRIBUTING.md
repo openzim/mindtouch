@@ -49,6 +49,8 @@ yarn dev
 
 Do not forget to cleanup `public/content` folder before building the docker image again, otherwise all assets will be pushed to the ZIM.
 
+Note that some assets (e.g. icomoon fonts on LibreTexts Geoscience) having a question mark in their URL are not properly working in the yarn dev server. This is OK inside the ZIM. See https://github.com/openzim/mindtouch/issues/34.
+
 ```
 rm -rf zimui/public/content
 ```

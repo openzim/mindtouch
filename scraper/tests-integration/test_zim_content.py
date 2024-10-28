@@ -50,6 +50,7 @@ def test_zim_metadata(zim_fh: Archive):
     "item_path,expected_mimetype",
     [
         pytest.param("content/logo.png", "image/png", id="logo"),
+        pytest.param("favicon.ico", "image/vnd.microsoft.icon", id="favicon"),
         pytest.param("content/screen.css", "text/css", id="screen.css"),
         pytest.param("content/print.css", "text/css", id="print.css"),
         pytest.param("content/inline.css", "text/css", id="inline.css"),
