@@ -1,8 +1,7 @@
-import requests
-
 from mindtouch2zim.constants import (
     HTTP_TIMEOUT_NORMAL_SECONDS,
     logger,
+    web_session,
 )
 
 
@@ -14,7 +13,7 @@ class VimeoThumbnailError(Exception):
 
 def get_vimeo_thumbnail_url(video_url: str) -> str:
     """From a vimeo URL - player or normal - retrieve corresponding thumbnail URL"""
-    resp = requests.get(
+    resp = web_session.get(
         f"https://vimeo.com/api/oembed.json?url={video_url}",
         timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
     )

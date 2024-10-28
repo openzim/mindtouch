@@ -1,6 +1,7 @@
 import logging
 import pathlib
 
+from zimscraperlib.download import get_session
 from zimscraperlib.logging import (
     getLogger,
 )
@@ -18,3 +19,5 @@ HTTP_TIMEOUT_NORMAL_SECONDS = 15
 HTTP_TIMEOUT_LONG_SECONDS = 30
 
 logger = getLogger(NAME, level=logging.DEBUG)
+
+web_session = get_session()
