@@ -653,23 +653,17 @@ def rewrite_iframe_tags(
             )
             url_rewriter.add_item_to_download(rewrite_result)
             image_rewriten_url = rewrite_result.rewriten_url
-        if VIMEO_IFRAME_RE.match(src):
+        elif VIMEO_IFRAME_RE.match(src):
             rewrite_result = url_rewriter(
                 get_vimeo_thumbnail_url(src),
                 base_href=base_href,
             )
             url_rewriter.add_item_to_download(rewrite_result)
             image_rewriten_url = rewrite_result.rewriten_url
+        else:
+            logger.debug(f"iframe pointing to {src} will not have any preview")
     except Exception as exc:
         logger.warning(f"Failed to rewrite iframe with src {src}", exc_info=exc)
-        return (
-            f'<a href="{src}" target="_blank">'
-            f"<div>"
-            f"{src}"
-            "</div>"
-            "</a>"
-            '<iframe style="display: none;">'  # fake opening tag just to remove iframe
-        )
 
     if image_rewriten_url:
         return (
@@ -677,6 +671,17 @@ def rewrite_iframe_tags(
             f'<div class="zim-removed-video">'
             f'<img src="content/{image_rewriten_url}">'
             "</img>"
+            "</div>"
+            "</a>"
+            '<iframe style="display: none;">'  # fake opening tag just to remove iframe
+        )
+    else:
+        # replace iframe with text indicating the online URL which has not been ZIMed
+        return (
+            f"This content is not inside the ZIM. "
+            f'View content online at <a href="{src}" target="_blank">'
+            f"<div>"
+            f"{src}"
             "</div>"
             "</a>"
             '<iframe style="display: none;">'  # fake opening tag just to remove iframe
