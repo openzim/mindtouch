@@ -2,6 +2,7 @@ import argparse
 import datetime
 import json
 import re
+from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
 
@@ -396,12 +397,37 @@ class Processor:
                 )
                 for page in selected_pages
             }
+            private_pages: list[LibraryPage] = []
             for page in selected_pages:
                 self.stats_items_done += 1
                 run_pending()
-                self._process_page(
-                    creator=creator, page=page, existing_zim_paths=existing_html_pages
+                try:
+                    if page.parent and page.parent in private_pages:
+                        logger.debug(f"Ignoring page {page.id} (private page child)")
+                        private_pages.append(page)
+                        continue
+                    self._process_page(
+                        creator=creator,
+                        page=page,
+                        existing_zim_paths=existing_html_pages,
+                    )
+                except HTTPError as exc:
+                    if exc.response.status_code == HTTPStatus.FORBIDDEN:
+                        if page == selected_pages[0]:
+                            raise Exception(
+                                "Root page is private, we cannot ZIM it, stopping"
+                            ) from None
+                        logger.debug(f"Ignoring page {page.id} (private page)")
+                        private_pages.append(page)
+                        continue
+            logger.info(f"{len(private_pages)} private pages have been ignored")
+            if len(private_pages) == len(selected_pages):
+                # we should never get here since we already check fail early if root
+                # page is private, but we are better safe than sorry
+                raise Exception(
+                    "All pages have been ignored, not creating an empty ZIM"
                 )
+            del private_pages
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
             self.stats_items_total += len(self.items_to_download)
