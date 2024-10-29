@@ -13,6 +13,7 @@ from mindtouch2zim.constants import (
     logger,
     web_session,
 )
+from mindtouch2zim.html import get_soup
 
 
 class MindtouchParsingError(Exception):
@@ -173,7 +174,7 @@ class MindtouchClient:
         """Retrieves data about home page by crawling home page"""
         home_content = self._get_text("/")
 
-        soup = _get_soup(home_content)
+        soup = get_soup(home_content)
         self.deki_token = _get_deki_token_from_home(soup)
         return MindtouchHome(
             welcome_text_paragraphs=_get_welcome_text_from_home(soup),
@@ -192,7 +193,7 @@ class MindtouchClient:
 
         home_content = self._get_text("/")
 
-        soup = _get_soup(home_content)
+        soup = get_soup(home_content)
         self.deki_token = _get_deki_token_from_home(soup)
         return self.deki_token
 
@@ -288,14 +289,6 @@ class MindtouchClient:
                 "is expected"
             )
         return LibraryPageContent(html_body=tree["body"][0])
-
-
-def _get_soup(content: str) -> BeautifulSoup:
-    """Return a BeautifulSoup soup from textual content
-
-    This is a utility function to ensure same parser is used in the whole codebase
-    """
-    return BeautifulSoup(content, "lxml")
 
 
 def _get_welcome_image_url_from_home(soup: BeautifulSoup) -> str:

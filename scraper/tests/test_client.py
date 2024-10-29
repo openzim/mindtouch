@@ -1,9 +1,9 @@
 import pytest
 
 from mindtouch2zim.client import (
-    _get_soup,  # pyright: ignore[reportPrivateUsage]
     _get_welcome_text_from_home,  # pyright: ignore[reportPrivateUsage]
 )
+from mindtouch2zim.html import get_soup
 
 
 @pytest.mark.parametrize(
@@ -54,4 +54,4 @@ from mindtouch2zim.client import (
     ],
 )
 def test_get_welcome_text_from_home(content: str, expected: str):
-    assert _get_welcome_text_from_home(_get_soup(content)) == expected
+    assert _get_welcome_text_from_home(get_soup(content)) == expected

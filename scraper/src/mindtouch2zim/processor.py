@@ -42,6 +42,7 @@ from mindtouch2zim.constants import (
     logger,
     web_session,
 )
+from mindtouch2zim.html import get_text
 from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -539,6 +540,13 @@ class Processor:
                 by_alias=True
             ),
         )
+        self._add_indexing_item_to_zim(
+            creator=creator,
+            title=page.title,
+            content=get_text(rewriten.content),
+            fname=f"page_{page.id}",
+            zimui_redirect=page.path,
+        )
 
     def _report_progress(self):
         """report progress to stats file"""
@@ -603,6 +611,39 @@ class Processor:
             method="cover",
         )
         return favicon
+
+    def _add_indexing_item_to_zim(
+        self,
+        creator: Creator,
+        title: str,
+        content: str,
+        fname: str,
+        zimui_redirect: str,
+    ):
+        """Add a 'fake' item to the ZIM, with proper indexing data
+
+        This is mandatory for suggestions and fulltext search to work properly, since
+        we do not really have pages to search for.
+
+        This item is a very basic HTML which automatically redirect to proper Vue.JS URL
+        """
+
+        redirect_url = f"../index.html#/{zimui_redirect}"
+        html_content = (
+            f"<html><head><title>{title}</title>"
+            f'<meta http-equiv="refresh" content="0;URL=\'{redirect_url}\'" />'
+            f"</head><body></body></html>"
+        )
+
+        logger.debug(f"Adding {fname} to ZIM index")
+        add_item_for(
+            creator=creator,
+            title=title,
+            path="index/" + fname,
+            content=bytes(html_content, "utf-8"),
+            mimetype="text/html",
+            index_data=IndexData(title=title, content=content),
+        )
 
 
 # remove all standard rules, they are not adapted to Vue.JS UI
