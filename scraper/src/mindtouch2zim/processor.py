@@ -640,7 +640,7 @@ class Processor:
             creator=creator,
             title=title,
             path="index/" + fname,
-            content=bytes(html_content, "utf-8"),
+            content=html_content.encode("utf-8"),
             mimetype="text/html",
             index_data=IndexData(title=title, content=content),
         )
