@@ -3,14 +3,15 @@ import re
 from pathlib import Path
 from typing import Any
 
-import requests
 from bs4 import BeautifulSoup, NavigableString
 from pydantic import BaseModel
+from requests import Response
 
 from mindtouch2zim.constants import (
     HTTP_TIMEOUT_LONG_SECONDS,
     HTTP_TIMEOUT_NORMAL_SECONDS,
     logger,
+    web_session,
 )
 
 
@@ -121,7 +122,7 @@ class MindtouchClient:
         full_url = f"{self.library_url}{url_subpath_and_query}"
         logger.debug(f"Fetching {full_url}")
 
-        resp = requests.get(
+        resp = web_session.get(
             url=full_url,
             allow_redirects=True,
             timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
@@ -131,12 +132,10 @@ class MindtouchClient:
         cache_file.write_text(resp.text)
         return resp.text
 
-    def _get_api_resp(
-        self, api_sub_path_and_query: str, timeout: float
-    ) -> requests.Response:
+    def _get_api_resp(self, api_sub_path_and_query: str, timeout: float) -> Response:
         api_url = f"{self.api_url}{api_sub_path_and_query}"
         logger.debug(f"Calling API at {api_url}")
-        resp = requests.get(
+        resp = web_session.get(
             url=api_url,
             headers={"x-deki-token": self.deki_token},
             timeout=timeout,

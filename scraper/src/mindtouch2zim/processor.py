@@ -35,7 +35,13 @@ from mindtouch2zim.client import (
     MindtouchClient,
     MindtouchHome,
 )
-from mindtouch2zim.constants import LANGUAGE_ISO_639_3, NAME, VERSION, logger
+from mindtouch2zim.constants import (
+    LANGUAGE_ISO_639_3,
+    NAME,
+    VERSION,
+    logger,
+    web_session,
+)
 from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -345,7 +351,9 @@ class Processor:
                 )
 
             welcome_image = BytesIO()
-            stream_file(home.welcome_image_url, byte_stream=welcome_image)
+            stream_file(
+                home.welcome_image_url, byte_stream=welcome_image, session=web_session
+            )
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
@@ -437,7 +445,11 @@ class Processor:
                 for asset_url in asset_urls:
                     try:
                         asset_content = BytesIO()
-                        stream_file(asset_url.value, byte_stream=asset_content)
+                        stream_file(
+                            asset_url.value,
+                            byte_stream=asset_content,
+                            session=web_session,
+                        )
                         logger.debug(
                             f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
                         )
@@ -474,7 +486,7 @@ class Processor:
             raise ValueError(f"Cannot process empty css_location for {target_filename}")
         if not css_content:
             css_buffer = BytesIO()
-            stream_file(css_location, byte_stream=css_buffer)
+            stream_file(css_location, byte_stream=css_buffer, session=web_session)
             css_content = css_buffer.getvalue()
         url_rewriter = CssUrlsRewriter(
             article_url=HttpUrl(css_location),
@@ -548,7 +560,9 @@ class Processor:
             try:
                 logger.debug(f"Downloading {icon_url} illustration")
                 illustration_content = BytesIO()
-                stream_file(icon_url, byte_stream=illustration_content)
+                stream_file(
+                    icon_url, byte_stream=illustration_content, session=web_session
+                )
                 illustration_format = format_for(
                     illustration_content, from_suffix=False
                 )
