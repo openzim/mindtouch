@@ -15,7 +15,7 @@ from zimscraperlib.image import convert_image, resize_image
 from zimscraperlib.image.conversion import convert_svg2png
 from zimscraperlib.image.probing import format_for
 from zimscraperlib.rewriting.css import CssRewriter
-from zimscraperlib.rewriting.html import HtmlRewriter
+from zimscraperlib.rewriting.html import AttrsList, HtmlRewriter, get_attr_value_from
 from zimscraperlib.rewriting.html import rules as html_rules
 from zimscraperlib.rewriting.url_rewriting import (
     ArticleUrlRewriter,
@@ -41,6 +41,7 @@ from mindtouch2zim.ui import (
     PageModel,
     SharedModel,
 )
+from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 from mindtouch2zim.zimconfig import ZimConfig
 
 
@@ -582,7 +583,7 @@ def rewrite_href_src_attributes(
     if attr_name not in ("href", "src") or not attr_value:
         return
     if not isinstance(url_rewriter, HtmlUrlsRewriter):
-        raise Exception("Expecting MindtouchUrlRewriter")
+        raise Exception("Expecting HtmlUrlsRewriter")
     new_attr_value = None
     if tag == "a":
         rewrite_result = url_rewriter(
@@ -601,17 +602,7 @@ def rewrite_href_src_attributes(
         )
         # add 'content/' to the URL since all assets will be stored in the sub.-path
         new_attr_value = f"content/{rewrite_result.rewriten_url}"
-        if rewrite_result.zim_path is not None:
-            # if item is expected to be inside the ZIM, store asset information so that
-            # we can download it afterwards
-            if rewrite_result.zim_path in url_rewriter.items_to_download:
-                url_rewriter.items_to_download[rewrite_result.zim_path].add(
-                    HttpUrl(rewrite_result.absolute_url)
-                )
-            else:
-                url_rewriter.items_to_download[rewrite_result.zim_path] = {
-                    HttpUrl(rewrite_result.absolute_url)
-                }
+        url_rewriter.add_item_to_download(rewrite_result)
     if not new_attr_value:
         # we do not (yet) support other tags / attributes so we fail the scraper
         raise ValueError(
@@ -632,6 +623,71 @@ def refuse_unsupported_tags(tag: str):
     if tag not in ["picture"]:
         return
     raise UnsupportedTagError(f"Tag {tag} is not yet supported in this scraper")
+
+
+YOUTUBE_IFRAME_RE = re.compile(r".*youtube(?:-\w+)*\.\w+\/embed\/(?P<id>.*?)(?:\?.*)*$")
+VIMEO_IFRAME_RE = re.compile(r".*vimeo(?:-\w+)*\.\w+\/video\/(?:.*?)(?:\?.*)*$")
+
+
+@html_rules.rewrite_tag()
+def rewrite_iframe_tags(
+    tag: str,
+    attrs: AttrsList,
+    base_href: str | None,
+    url_rewriter: ArticleUrlRewriter,
+):
+    """Rewrite youtube and vimeo iframes to remove player until video is included"""
+    if tag not in ["iframe"]:
+        return
+    if not isinstance(url_rewriter, HtmlUrlsRewriter):
+        raise Exception("Expecting HtmlUrlsRewriter")
+    src = get_attr_value_from(attrs=attrs, name="src")
+    if not src:
+        raise UnsupportedTagError("Unsupported empty src in iframe")
+    image_rewriten_url = None
+    try:
+        if ytb_match := YOUTUBE_IFRAME_RE.match(src):
+            rewrite_result = url_rewriter(
+                f'https://i.ytimg.com/vi/{ytb_match.group("id")}/hqdefault.jpg',
+                base_href=base_href,
+            )
+            url_rewriter.add_item_to_download(rewrite_result)
+            image_rewriten_url = rewrite_result.rewriten_url
+        elif VIMEO_IFRAME_RE.match(src):
+            rewrite_result = url_rewriter(
+                get_vimeo_thumbnail_url(src),
+                base_href=base_href,
+            )
+            url_rewriter.add_item_to_download(rewrite_result)
+            image_rewriten_url = rewrite_result.rewriten_url
+        else:
+            logger.debug(f"iframe pointing to {src} will not have any preview")
+    except Exception as exc:
+        logger.warning(f"Failed to rewrite iframe with src {src}", exc_info=exc)
+
+    if image_rewriten_url:
+        return (
+            f'<a href="{src}" target="_blank">'
+            f'<div class="zim-removed-video">'
+            f'<img src="content/{image_rewriten_url}">'
+            "</img>"
+            "</div>"
+            "</a>"
+            '<iframe style="display: none;">'  # fake opening tag just to remove iframe
+        )
+    else:
+        # replace iframe with text indicating the online URL which has not been ZIMed
+        return (
+            f"This content is not inside the ZIM. "
+            f'View content online at <a href="{src}" target="_blank">'
+            f"<div>"
+            f"{src}"
+            "</div>"
+            "</a>"
+            '<iframe style="display: none;">'  # fake opening tag just to remove iframe
+        )
+
+    raise UnsupportedTagError(f"Unsupported src {src} in iframe")
 
 
 class HtmlUrlsRewriter(ArticleUrlRewriter):
@@ -658,6 +714,20 @@ class HtmlUrlsRewriter(ArticleUrlRewriter):
     ) -> RewriteResult:
         result = super().__call__(item_url, base_href, rewrite_all_url=rewrite_all_url)
         return result
+
+    def add_item_to_download(self, rewrite_result: RewriteResult):
+        """Add item to download based on rewrite result"""
+        if rewrite_result.zim_path is not None:
+            # if item is expected to be inside the ZIM, store asset information so that
+            # we can download it afterwards
+            if rewrite_result.zim_path in self.items_to_download:
+                self.items_to_download[rewrite_result.zim_path].add(
+                    HttpUrl(rewrite_result.absolute_url)
+                )
+            else:
+                self.items_to_download[rewrite_result.zim_path] = {
+                    HttpUrl(rewrite_result.absolute_url)
+                }
 
 
 class CssUrlsRewriter(ArticleUrlRewriter):

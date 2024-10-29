@@ -7,10 +7,11 @@ import requests
 from bs4 import BeautifulSoup, NavigableString
 from pydantic import BaseModel
 
-from mindtouch2zim.constants import logger
-
-HTTP_TIMEOUT_NORMAL_SECONDS = 15
-HTTP_TIMEOUT_LONG_SECONDS = 30
+from mindtouch2zim.constants import (
+    HTTP_TIMEOUT_LONG_SECONDS,
+    HTTP_TIMEOUT_NORMAL_SECONDS,
+    logger,
+)
 
 
 class MindtouchParsingError(Exception):
