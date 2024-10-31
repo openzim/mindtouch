@@ -1,6 +1,15 @@
+a[href^="http://"],
+a[href^="https://"]
+{
+  /* modify all <a> tag so that the :after is centered */
+  display: inline-flex;
+  align-items: center;
+}
+
 a[href^="http://"]:after,
 a[href^="https://"]:after
 {
+  /* add an external link icon to all external links (not relative after HTML rewriting) */
   content: '';
   display: inline-block;
   width: 10px;
@@ -9,19 +18,20 @@ a[href^="https://"]:after
   background-size: contain;
   background-repeat: no-repeat;
   margin-left: 5px;
-  position: relative;
-  bottom: 0px;
-  right: 0px;
 }
 
 .zim-removed-video {
   position: relative;
-  display: inline-block;
-  width: 100%;
-  height: auto;
+  display: flex;
+  justify-content: center;
 }
 
-.zim-removed-video::before {
+.zim-removed-video a {
+  display: inline-flex;
+  position: relative;
+}
+
+.zim-removed-video a::before {
   content: '';
   position: absolute;
   top: 0;
