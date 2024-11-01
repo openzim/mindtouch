@@ -9,6 +9,7 @@ While meant to be generic for any Mindtouch instance, it has so far been tested 
 [![codecov](https://codecov.io/gh/openzim/mindtouch/branch/main/graph/badge.svg)](https://codecov.io/gh/openzim/mindtouch)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/mindtouch2zim.svg)](https://pypi.org/project/mindtouch2zim/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mindtouch2zim.svg)](https://pypi.org/project/mindtouch2zim)
+[![Docker](https://ghcr-badge.egpl.dev/openzim/mindtouch/latest_tag?label=docker)](https://ghcr.io/openzim/mindtouch)
 
 ## Installation
 
