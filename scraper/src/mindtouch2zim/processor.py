@@ -677,25 +677,12 @@ def rewrite_href_src_attributes(
             if rewrite_result.rewriten_url.startswith(url_rewriter.library_path.value)
             else rewrite_result.rewriten_url
         )
-    if tag == "img":
-        rewrite_result = url_rewriter(
-            attr_value, base_href=base_href, rewrite_all_url=True
-        )
-        # add 'content/' to the URL since all assets will be stored in the sub.-path
-        new_attr_value = f"content/{rewrite_result.rewriten_url}"
-        url_rewriter.add_item_to_download(rewrite_result)
     if not new_attr_value:
         # we do not (yet) support other tags / attributes so we fail the scraper
         raise ValueError(
             f"Empty new value when rewriting {attr_value} from {attr_name} in {tag} tag"
         )
     return (attr_name, new_attr_value)
-
-
-@html_rules.drop_attribute()
-def drop_sizes_and_srcset_attribute(tag: str, attr_name: str):
-    """Drop srcset and sizes attributes in <img> tags"""
-    return tag == "img" and attr_name in ("srcset", "sizes")
 
 
 @html_rules.rewrite_tag()
