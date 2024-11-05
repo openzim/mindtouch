@@ -768,8 +768,6 @@ def rewrite_iframe_tags(
             '<iframe style="display: none;">'  # fake opening tag just to remove iframe
         )
 
-    raise UnsupportedTagError(f"Unsupported src {src} in iframe")
-
 
 class HtmlUrlsRewriter(ArticleUrlRewriter):
     """A rewriter for HTML processing
