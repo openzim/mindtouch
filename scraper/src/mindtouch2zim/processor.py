@@ -27,6 +27,7 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
+from mindtouch2zim.asset import download_asset
 from mindtouch2zim.client import (
     LibraryPage,
     LibraryPageId,
@@ -421,12 +422,7 @@ class Processor:
                 run_pending()
                 for asset_url in asset_urls:
                     try:
-                        asset_content = BytesIO()
-                        stream_file(
-                            asset_url.value,
-                            byte_stream=asset_content,
-                            session=web_session,
-                        )
+                        asset_content = download_asset(asset_url=asset_url)
                         logger.debug(
                             f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
                         )
