@@ -28,3 +28,27 @@ def get_asset_path_from_url(online_url: str, already_used_paths: list[Path]) -> 
             break
         index += 1
     return relative_path
+
+
+def is_better_srcset_descriptor(
+    new_descriptor: str | None, current_best_descriptor: str | None
+) -> bool:
+    """Compares two HTML images srcset descriptors
+
+    In srcset="PtolemyWorldMap-1024x701.jpg 1024w", the descriptor is 1024w.
+
+    Descriptors can be None, meaning that they are not set in the srcset.
+
+    This implementation is a bit naive because it supposes the srcset is valid (i.e.
+    no mix of width descriptor and pixel density descriptor), otherwise it assumes that
+    new descriptor is not better than current one if both are set.
+    """
+    if new_descriptor is None:
+        return False
+    if current_best_descriptor is None:
+        return True
+    current_best_descriptor = current_best_descriptor.strip()
+    new_descriptor = new_descriptor.strip()
+    if current_best_descriptor[-1:] != new_descriptor[-1:]:
+        return False
+    return int(new_descriptor[:-1]) > int(current_best_descriptor[:-1])
