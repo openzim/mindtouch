@@ -2,11 +2,7 @@ import argparse
 
 from pydantic import BaseModel
 
-
-class InvalidFormatError(Exception):
-    """Raised when a user supplied template has an invalid parameter."""
-
-    pass
+from mindtouch2zim.errors import InvalidFormatError
 
 
 class ZimConfig(BaseModel):
