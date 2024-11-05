@@ -15,7 +15,7 @@ from zimscraperlib.rewriting.url_rewriting import (
 
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.constants import logger
-from mindtouch2zim.errors import UnsupportedTagError
+from mindtouch2zim.errors import UnsupportedHrefSrcError, UnsupportedTagError
 from mindtouch2zim.utils import is_better_srcset_descriptor
 from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 
@@ -52,8 +52,8 @@ def rewrite_href_src_attributes(
         )
     if not new_attr_value:
         # we do not (yet) support other tags / attributes so we fail the scraper
-        raise ValueError(
-            f"Empty new value when rewriting {attr_value} from {attr_name} in {tag} tag"
+        raise UnsupportedHrefSrcError(
+            f"Unsupported {attr_name} encountered in {tag} tag (value: {attr_value})"
         )
     return (attr_name, new_attr_value)
 
