@@ -6,7 +6,9 @@ from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
 
+import backoff
 from pydantic import BaseModel
+from requests import RequestException
 from requests.exceptions import HTTPError
 from schedule import every, run_pending
 from zimscraperlib.download import (
@@ -52,7 +54,7 @@ from mindtouch2zim.ui import (
     PageModel,
     SharedModel,
 )
-from mindtouch2zim.utils import add_item_for
+from mindtouch2zim.utils import add_item_for, backoff_hdlr
 from mindtouch2zim.zimconfig import ZimConfig
 
 
@@ -460,6 +462,12 @@ class Processor:
                 )
         add_item_for(creator, f"content/{target_filename}", content=result)
 
+    @backoff.on_exception(
+        backoff.expo,
+        RequestException,
+        max_time=16,
+        on_backoff=backoff_hdlr,
+    )
     def _process_page(
         self, creator: Creator, page: LibraryPage, existing_zim_paths: set[ZimPath]
     ):

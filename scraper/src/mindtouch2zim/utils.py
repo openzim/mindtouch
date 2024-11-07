@@ -1,8 +1,11 @@
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from zimscraperlib.zim import Creator
 from zimscraperlib.zim.indexing import IndexData
+
+from mindtouch2zim.constants import logger
 
 
 def get_asset_path_from_url(online_url: str, already_used_paths: list[Path]) -> Path:
@@ -90,4 +93,12 @@ def add_item_for(
         duplicate_ok=duplicate_ok,
         index_data=index_data,
         auto_index=auto_index,
+    )
+
+
+def backoff_hdlr(details: Any):
+    """Default backoff handler to log something when backoff occurs"""
+    logger.warning(
+        "Request error, starting backoff of {wait:0.1f} seconds after {tries} "
+        "tries".format(**details)
     )

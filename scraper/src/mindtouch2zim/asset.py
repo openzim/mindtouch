@@ -1,10 +1,12 @@
 from io import BytesIO
 from typing import NamedTuple
 
+import backoff
 from kiwixstorage import KiwixStorage, NotFoundError
 from pif import get_public_ip
 from PIL import Image
 from requests import HTTPError
+from requests.exceptions import RequestException
 from zimscraperlib.download import stream_file
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
@@ -13,7 +15,7 @@ from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import logger, web_session
-from mindtouch2zim.utils import add_item_for
+from mindtouch2zim.utils import add_item_for, backoff_hdlr
 
 SUPPORTED_IMAGE_MIME_TYPES = {
     "image/jpeg",
@@ -56,6 +58,27 @@ class AssetProcessor:
         self.resize_images = resize_images
 
     def process_asset(
+        self,
+        asset_path: ZimPath,
+        asset_details: AssetDetails,
+        creator: Creator,
+    ):
+        logger.debug(f"Processing asset for {asset_path}")
+        try:
+            self._process_asset_internal(
+                asset_path=asset_path, asset_details=asset_details, creator=creator
+            )
+        except Exception as exc:
+            logger.exception("Error occured", exc)
+            raise
+
+    @backoff.on_exception(
+        backoff.expo,
+        RequestException,
+        max_time=16,
+        on_backoff=backoff_hdlr,
+    )
+    def _process_asset_internal(
         self,
         asset_path: ZimPath,
         asset_details: AssetDetails,
