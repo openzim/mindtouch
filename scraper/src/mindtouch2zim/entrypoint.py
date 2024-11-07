@@ -218,6 +218,20 @@ def main(tmpdir: str) -> None:
         dest="illustration_url",
     )
 
+    parser.add_argument(
+        "--optimization-cache",
+        help="URL with credentials to S3 for using as optimization cache",
+        dest="s3_url_with_credentials",
+    )
+
+    parser.add_argument(
+        "--resize-images",
+        help="If set, resize all large images to a more moderate size",
+        action="store_true",
+        default=False,
+        dest="resize_images",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -253,6 +267,8 @@ def main(tmpdir: str) -> None:
             stats_file=Path(args.stats_filename) if args.stats_filename else None,
             overwrite_existing_zim=args.overwrite,
             illustration_url=args.illustration_url,
+            s3_url_with_credentials=args.s3_url_with_credentials,
+            resize_images=args.resize_images,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

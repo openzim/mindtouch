@@ -11,7 +11,7 @@ dependencies = [
   "yt-dlp",                      # youtube-dl should be updated as frequently as possible
   "jinja2==3.1.4",
   # use zimscraperlib pinned version once content rewriting functions have been released
-  "zimscraperlib @ git+https://github.com/openzim/python-scraperlib@main",
+  "zimscraperlib @ git+https://github.com/openzim/python-scraperlib@scraper_executor",
   "requests==2.32.3",
   "types-requests==2.32.0.20240914",
   "kiwixstorage==0.9.0",

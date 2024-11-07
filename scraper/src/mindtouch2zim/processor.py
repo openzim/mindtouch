@@ -5,6 +5,7 @@ import re
 from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
+from typing import NamedTuple
 
 from pydantic import BaseModel
 from requests.exceptions import HTTPError
@@ -27,7 +28,7 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
-from mindtouch2zim.asset import download_asset
+from mindtouch2zim.asset import AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
     LibraryPageId,
@@ -52,6 +53,11 @@ from mindtouch2zim.ui import (
     SharedModel,
 )
 from mindtouch2zim.zimconfig import ZimConfig
+
+
+class AssetDetails(NamedTuple):
+    urls: set[HttpUrl]
+    always_fetch_online: bool
 
 
 class ContentFilter(BaseModel):
@@ -170,8 +176,10 @@ class Processor:
         zimui_dist: Path,
         stats_file: Path | None,
         illustration_url: str | None,
+        s3_url_with_credentials: str | None,
         *,
         overwrite_existing_zim: bool,
+        resize_images: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -192,6 +200,9 @@ class Processor:
         self.stats_file = stats_file
         self.overwrite_existing_zim = overwrite_existing_zim
         self.illustration_url = illustration_url
+        self.asset_processor = AssetProcessor(
+            s3_url_with_credentials=s3_url_with_credentials, resize_images=resize_images
+        )
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning
@@ -335,7 +346,7 @@ class Processor:
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
-            self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+            self.items_to_download: dict[ZimPath, AssetDetails] = {}
             self._process_css(
                 css_location=home.screen_css_url,
                 target_filename="screen.css",
@@ -417,12 +428,16 @@ class Processor:
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
             self.stats_items_total += len(self.items_to_download)
-            for asset_path, asset_urls in self.items_to_download.items():
+            for asset_path, asset_details in self.items_to_download.items():
                 self.stats_items_done += 1
                 run_pending()
-                for asset_url in asset_urls:
+                for asset_url in asset_details.urls:
                     try:
-                        asset_content = download_asset(asset_url=asset_url)
+                        asset_content = self.asset_processor.get_asset_content(
+                            asset_path=asset_path,
+                            asset_url=asset_url,
+                            always_fetch_online=asset_details.always_fetch_online,
+                        )
                         logger.debug(
                             f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
                         )
@@ -475,9 +490,11 @@ class Processor:
         # to use last URL encountered.
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:
-                self.items_to_download[path].update(urls)
+                self.items_to_download[path].urls.update(urls)
             else:
-                self.items_to_download[path] = urls
+                self.items_to_download[path] = AssetDetails(
+                    urls=urls, always_fetch_online=True
+                )
         add_item_for(creator, f"content/{target_filename}", content=result)
 
     def _process_page(
@@ -502,9 +519,11 @@ class Processor:
         rewriten = rewriter.rewrite(page_content.html_body)
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:
-                self.items_to_download[path].update(urls)
+                self.items_to_download[path].urls.update(urls)
             else:
-                self.items_to_download[path] = urls
+                self.items_to_download[path] = AssetDetails(
+                    urls=urls, always_fetch_online=False
+                )
         add_item_for(
             creator,
             f"content/page_content_{page.id}.json",
