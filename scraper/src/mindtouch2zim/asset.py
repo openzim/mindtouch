@@ -10,7 +10,6 @@ from requests.exceptions import RequestException
 from zimscraperlib.download import stream_file
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
-from zimscraperlib.image.transformation import resize_image
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
@@ -35,8 +34,6 @@ SUPPORTED_IMAGE_MIME_TYPES = {
 
 WEBP_OPTIONS = WebpMedium().options
 
-MAX_IMAGE_SIZE = 640
-
 
 class HeaderData(NamedTuple):
     ident: str  # ~version~ of the URL data to use for comparisons
@@ -50,12 +47,9 @@ class AssetDetails(NamedTuple):
 
 class AssetProcessor:
 
-    def __init__(
-        self, s3_url_with_credentials: str | None, *, resize_images: bool
-    ) -> None:
+    def __init__(self, s3_url_with_credentials: str | None) -> None:
         self.s3_url_with_credentials = s3_url_with_credentials
         self._setup_s3()
-        self.resize_images = resize_images
 
     def process_asset(
         self,
@@ -141,7 +135,7 @@ class AssetProcessor:
         - optimize webp
         - upload to S3 cache if configured
         """
-        meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION)}
+        meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION) + ".r"}
         s3_key = f"medium/{asset_path.value}"
 
         if self.s3_url_with_credentials:
@@ -156,21 +150,7 @@ class AssetProcessor:
         optimized = BytesIO()
         with Image.open(unoptimized) as img:
             img.save(optimized, format="WEBP")
-            img_width = img.width
-            img_height = img.height
             del unoptimized
-
-        if self.resize_images:  # probably not worth it, tbc with real measurements
-            if img_width >= img_height and img_width > MAX_IMAGE_SIZE:
-                # image is in landscape
-                resize_image(src=optimized, width=MAX_IMAGE_SIZE, allow_upscaling=False)
-            elif img_height > MAX_IMAGE_SIZE:
-                # image is in portrait
-                resize_image(
-                    src=optimized,
-                    width=int(img_width / img_height * MAX_IMAGE_SIZE),
-                    allow_upscaling=False,
-                )
 
         optimize_webp(
             src=optimized,

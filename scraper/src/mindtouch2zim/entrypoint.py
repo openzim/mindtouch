@@ -225,14 +225,6 @@ def main(tmpdir: str) -> None:
     )
 
     parser.add_argument(
-        "--resize-images",
-        help="If set, resize all large images to a more moderate size",
-        action="store_true",
-        default=False,
-        dest="resize_images",
-    )
-
-    parser.add_argument(
         "--assets-workers",
         type=int,
         help=("Number of parallel workers for asset processing (default: 10)"),
@@ -276,7 +268,6 @@ def main(tmpdir: str) -> None:
             overwrite_existing_zim=args.overwrite,
             illustration_url=args.illustration_url,
             s3_url_with_credentials=args.s3_url_with_credentials,
-            resize_images=args.resize_images,
             assets_workers=args.assets_workers,
         ).run()
     except SystemExit:

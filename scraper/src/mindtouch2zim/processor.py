@@ -142,7 +142,6 @@ class Processor:
         assets_workers: int,
         *,
         overwrite_existing_zim: bool,
-        resize_images: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -164,7 +163,7 @@ class Processor:
         self.overwrite_existing_zim = overwrite_existing_zim
         self.illustration_url = illustration_url
         self.asset_processor = AssetProcessor(
-            s3_url_with_credentials=s3_url_with_credentials, resize_images=resize_images
+            s3_url_with_credentials=s3_url_with_credentials
         )
         self.asset_executor = ScraperExecutor(
             queue_size=2 * assets_workers,
@@ -565,7 +564,7 @@ class Processor:
         """Return a converted version of the illustration into favicon"""
         favicon = BytesIO()
         convert_image(illustration, favicon, fmt="ICO")
-        logger.debug("Resizing ZIM illustration")
+        logger.debug("Resizing ZIM favicon")
         resize_image(
             src=favicon,
             width=32,
