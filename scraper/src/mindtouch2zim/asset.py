@@ -2,6 +2,7 @@ from io import BytesIO
 from typing import NamedTuple
 
 from kiwixstorage import KiwixStorage, NotFoundError
+from pif import get_public_ip
 from PIL import Image
 from requests import HTTPError
 from zimscraperlib.download import stream_file
@@ -51,9 +52,7 @@ class AssetProcessor:
         self, s3_url_with_credentials: str | None, *, resize_images: bool
     ) -> None:
         self.s3_url_with_credentials = s3_url_with_credentials
-        self.s3_storage = (
-            KiwixStorage(s3_url_with_credentials) if s3_url_with_credentials else None
-        )
+        self._setup_s3()
         self.resize_images = resize_images
 
     def process_asset(
@@ -226,3 +225,24 @@ class AssetProcessor:
                     logger.debug(f"Not optimizing, unsupported mime type: {mime_type}")
 
         return self._download_from_online(asset_url=asset_url)
+
+    def _setup_s3(self):
+        if not self.s3_url_with_credentials:
+            return
+        logger.info("testing S3 Optimization Cache credentials")
+        self.s3_storage = KiwixStorage(self.s3_url_with_credentials)
+        if not self.s3_storage.check_credentials(  # pyright: ignore[reportUnknownMemberType]
+            list_buckets=True, bucket=True, write=True, read=True, failsafe=True
+        ):
+            logger.error("S3 cache connection error testing permissions.")
+            logger.error(
+                f"  Server: {self.s3_storage.url.netloc}"  # pyright: ignore[reportUnknownMemberType]
+            )
+            logger.error(
+                f"  Bucket: {self.s3_storage.bucket_name}"  # pyright: ignore[reportUnknownMemberType]
+            )
+            logger.error(
+                f"  Key ID: {self.s3_storage.params.get('keyid')}"  # pyright: ignore[reportUnknownMemberType]
+            )
+            logger.error(f"  Public IP: {get_public_ip()}")
+            raise Exception("Invalid S3 credentials")

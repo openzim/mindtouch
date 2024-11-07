@@ -232,6 +232,14 @@ def main(tmpdir: str) -> None:
         dest="resize_images",
     )
 
+    parser.add_argument(
+        "--assets-workers",
+        type=int,
+        help=("Number of parallel workers for asset processing (default: 10)"),
+        default=10,
+        dest="assets_workers",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -269,6 +277,7 @@ def main(tmpdir: str) -> None:
             illustration_url=args.illustration_url,
             s3_url_with_credentials=args.s3_url_with_credentials,
             resize_images=args.resize_images,
+            assets_workers=args.assets_workers,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

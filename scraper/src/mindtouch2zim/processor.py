@@ -12,6 +12,7 @@ from schedule import every, run_pending
 from zimscraperlib.download import (
     stream_file,  # pyright: ignore[reportUnknownVariableType]
 )
+from zimscraperlib.executor import ScraperExecutor
 from zimscraperlib.image import convert_image, resize_image
 from zimscraperlib.image.conversion import convert_svg2png
 from zimscraperlib.image.probing import format_for
@@ -136,6 +137,7 @@ class Processor:
         stats_file: Path | None,
         illustration_url: str | None,
         s3_url_with_credentials: str | None,
+        assets_workers: int,
         *,
         overwrite_existing_zim: bool,
         resize_images: bool,
@@ -161,6 +163,10 @@ class Processor:
         self.illustration_url = illustration_url
         self.asset_processor = AssetProcessor(
             s3_url_with_credentials=s3_url_with_credentials, resize_images=resize_images
+        )
+        self.asset_executor = ScraperExecutor(
+            queue_size=2 * assets_workers,
+            nb_workers=assets_workers,
         )
 
         self.stats_items_done = 0
@@ -387,14 +393,28 @@ class Processor:
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
             self.stats_items_total += len(self.items_to_download)
+            self.asset_executor.start()
             for asset_path, asset_details in self.items_to_download.items():
                 self.stats_items_done += 1
                 run_pending()
-                self.asset_processor.process_asset(
+                if self.asset_executor.exception:
+                    break
+                self.asset_executor.submit(
+                    self.asset_processor.process_asset,
                     asset_path=asset_path,
                     asset_details=asset_details,
                     creator=creator,
+                    raises=True,
                 )
+            self.asset_executor.shutdown()
+
+            if len(self.asset_executor.exceptions) > 0:
+                logger.error(
+                    "Exception occured during assets processing, aborting ZIM creation"
+                )
+                creator.can_finish = False
+
+        logger.info(f"ZIM creation completed, ZIM is at {zim_path}")
 
         # same reason than self.stats_items_done = 1 at the beginning, we need to add
         # a final item to complete the progress
