@@ -5,7 +5,6 @@ import re
 from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
-from typing import NamedTuple
 
 from pydantic import BaseModel
 from requests.exceptions import HTTPError
@@ -28,7 +27,7 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_zimfile_creatable
 from zimscraperlib.zim.indexing import IndexData
 
-from mindtouch2zim.asset import AssetProcessor
+from mindtouch2zim.asset import AssetDetails, AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
     LibraryPageId,
@@ -52,12 +51,8 @@ from mindtouch2zim.ui import (
     PageModel,
     SharedModel,
 )
+from mindtouch2zim.utils import add_item_for
 from mindtouch2zim.zimconfig import ZimConfig
-
-
-class AssetDetails(NamedTuple):
-    urls: set[HttpUrl]
-    always_fetch_online: bool
 
 
 class ContentFilter(BaseModel):
@@ -126,42 +121,6 @@ class ContentFilter(BaseModel):
 
         # Then transform set of ids into list of pages
         return [page for page in page_tree.pages.values() if page.id in selected_ids]
-
-
-def add_item_for(
-    creator: Creator,
-    path: str,
-    title: str | None = None,
-    *,
-    fpath: Path | None = None,
-    content: bytes | str | None = None,
-    mimetype: str | None = None,
-    is_front: bool | None = None,
-    should_compress: bool | None = None,
-    delete_fpath: bool | None = False,
-    duplicate_ok: bool | None = None,
-    index_data: IndexData | None = None,
-    auto_index: bool = True,
-):
-    """
-    Boilerplate to avoid repeating pyright ignore
-
-    To be removed, once upstream issue is solved, see
-    https://github.com/openzim/libretexts/issues/26
-    """
-    creator.add_item_for(  # pyright: ignore[reportUnknownMemberType]
-        path=path,
-        title=title,
-        fpath=fpath,
-        content=content,
-        mimetype=mimetype,
-        is_front=is_front,
-        should_compress=should_compress,
-        delete_fpath=delete_fpath,
-        duplicate_ok=duplicate_ok,
-        index_data=index_data,
-        auto_index=auto_index,
-    )
 
 
 class Processor:
@@ -431,27 +390,11 @@ class Processor:
             for asset_path, asset_details in self.items_to_download.items():
                 self.stats_items_done += 1
                 run_pending()
-                for asset_url in asset_details.urls:
-                    try:
-                        asset_content = self.asset_processor.get_asset_content(
-                            asset_path=asset_path,
-                            asset_url=asset_url,
-                            always_fetch_online=asset_details.always_fetch_online,
-                        )
-                        logger.debug(
-                            f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
-                        )
-                        add_item_for(
-                            creator,
-                            "content/" + asset_path.value,
-                            content=asset_content.getvalue(),
-                        )
-                        break  # file found and added
-                    except HTTPError as exc:
-                        # would make more sense to be a warning, but this is just too
-                        # verbose, at least on geo.libretexts.org many assets are just
-                        # missing
-                        logger.debug(f"Ignoring {asset_path.value} due to {exc}")
+                self.asset_processor.process_asset(
+                    asset_path=asset_path,
+                    asset_details=asset_details,
+                    creator=creator,
+                )
 
         # same reason than self.stats_items_done = 1 at the beginning, we need to add
         # a final item to complete the progress

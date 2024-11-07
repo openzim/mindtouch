@@ -3,13 +3,16 @@ from typing import NamedTuple
 
 from kiwixstorage import KiwixStorage, NotFoundError
 from PIL import Image
+from requests import HTTPError
 from zimscraperlib.download import stream_file
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.image.transformation import resize_image
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
+from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import logger, web_session
+from mindtouch2zim.utils import add_item_for
 
 SUPPORTED_IMAGE_MIME_TYPES = {
     "image/jpeg",
@@ -37,14 +40,49 @@ class HeaderData(NamedTuple):
     content_type: str | None
 
 
+class AssetDetails(NamedTuple):
+    urls: set[HttpUrl]
+    always_fetch_online: bool
+
+
 class AssetProcessor:
 
     def __init__(
         self, s3_url_with_credentials: str | None, *, resize_images: bool
     ) -> None:
         self.s3_url_with_credentials = s3_url_with_credentials
-        self.s3_storage = KiwixStorage(s3_url_with_credentials)
+        self.s3_storage = (
+            KiwixStorage(s3_url_with_credentials) if s3_url_with_credentials else None
+        )
         self.resize_images = resize_images
+
+    def process_asset(
+        self,
+        asset_path: ZimPath,
+        asset_details: AssetDetails,
+        creator: Creator,
+    ):
+        for asset_url in asset_details.urls:
+            try:
+                asset_content = self.get_asset_content(
+                    asset_path=asset_path,
+                    asset_url=asset_url,
+                    always_fetch_online=asset_details.always_fetch_online,
+                )
+                logger.debug(
+                    f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
+                )
+                add_item_for(
+                    creator=creator,
+                    path="content/" + asset_path.value,
+                    content=asset_content.getvalue(),
+                )
+                break  # file found and added
+            except HTTPError as exc:
+                # would make more sense to be a warning, but this is just too
+                # verbose, at least on geo.libretexts.org many assets are just
+                # missing
+                logger.debug(f"Ignoring {asset_path.value} due to {exc}")
 
     def _get_header_data_for(self, url: HttpUrl) -> HeaderData:
         """Get details from headers for a given url
@@ -133,6 +171,8 @@ class AssetProcessor:
     def _download_from_s3_cache(
         self, s3_key: str, meta: dict[str, str]
     ) -> BytesIO | None:
+        if not self.s3_storage:
+            raise Exception("s3 storage must be set")
         try:
             asset_content = BytesIO()
             self.s3_storage.download_matching_fileobj(  # pyright: ignore[reportUnknownMemberType]
@@ -147,6 +187,8 @@ class AssetProcessor:
     def _upload_to_s3_cache(
         self, s3_key: str, meta: dict[str, str], asset_content: BytesIO
     ):
+        if not self.s3_storage:
+            raise Exception("s3 storage must be set")
         try:
             self.s3_storage.upload_fileobj(  # pyright: ignore[reportUnknownMemberType]
                 key=s3_key, fileobj=asset_content, meta=meta
