@@ -23,7 +23,8 @@
     "vite-plugin-vuetify": "^2.0.4",
     "vue": "^3.4.29",
     "vue-router": "^4.3.3",
-    "vuetify": "^3.7.2"
+    "vuetify": "^3.7.2",
+    "webp-hero": "^0.0.2"
   },
   "devDependencies": {
     "@mdi/font": "^7.4.47",

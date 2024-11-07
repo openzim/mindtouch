@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import axios, { AxiosError } from 'axios'
 import type { PageContent, Shared, SharedPage } from '@/types/shared'
 import mathjaxService from '@/services/mathjax'
+import { WebpMachine, detectWebpSupport } from 'webp-hero'
 
 export type RootState = {
   shared: Shared | null
@@ -53,22 +54,32 @@ export const useMainStore = defineStore('main', {
       this.errorMessage = ''
       this.errorDetails = ''
 
-      return axios.get(`./content/page_content_${page.id}.json`).then(
-        (response) => {
-          this.isLoading = false
-          this.pageContent = response.data as PageContent
-          mathjaxService.removeMathJax()
-          mathjaxService.addMathJax(mathjaxService.frontFromTitle(page.title))
-        },
-        (error) => {
-          this.isLoading = false
-          this.shared = null
-          this.errorMessage = `Failed to load page content for page ${page.id}`
-          if (error instanceof AxiosError) {
-            this.handleAxiosError(error)
+      return axios
+        .get(`./content/page_content_${page.id}.json`)
+        .then(
+          (response) => {
+            this.isLoading = false
+            this.pageContent = response.data as PageContent
+            mathjaxService.removeMathJax()
+            mathjaxService.addMathJax(mathjaxService.frontFromTitle(page.title))
+          },
+          (error) => {
+            this.isLoading = false
+            this.shared = null
+            this.errorMessage = `Failed to load page content for page ${page.id}`
+            if (error instanceof AxiosError) {
+              this.handleAxiosError(error)
+            }
           }
-        }
-      )
+        )
+        .then(detectWebpSupport)
+        .then((supported) => {
+          if (!supported) {
+            console.log('Polyfilling WebP')
+            const webpMachine = new WebpMachine()
+            webpMachine.polyfillDocument()
+          }
+        })
     },
     checkResponseObject(response: unknown, msg: string = '') {
       if (response === null || typeof response !== 'object') {
