@@ -9,7 +9,7 @@ description = "Make ZIM file from Mindtouch / Nice CXone Expert libraries"
 readme = "../README.md"
 dependencies = [
   # use zimscraperlib pinned version once content rewriting functions have been released
-  "zimscraperlib @ git+https://github.com/openzim/python-scraperlib@small_changes",
+  "zimscraperlib @ git+https://github.com/openzim/python-scraperlib@main",
   "requests==2.32.3",
   "types-requests==2.32.0.20240914",
   "kiwixstorage==0.9.0",
