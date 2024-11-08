@@ -7,14 +7,12 @@ from io import BytesIO
 from pathlib import Path
 
 import backoff
+from joblib import Parallel, delayed
 from pydantic import BaseModel
 from requests import RequestException
 from requests.exceptions import HTTPError
 from schedule import every, run_pending
-from zimscraperlib.download import (
-    stream_file,  # pyright: ignore[reportUnknownVariableType]
-)
-from zimscraperlib.executor import ScraperExecutor
+from zimscraperlib.download import stream_file
 from zimscraperlib.image import convert_image, resize_image
 from zimscraperlib.image.conversion import convert_svg2png
 from zimscraperlib.image.probing import format_for
@@ -165,9 +163,8 @@ class Processor:
         self.asset_processor = AssetProcessor(
             s3_url_with_credentials=s3_url_with_credentials
         )
-        self.asset_executor = ScraperExecutor(
-            queue_size=2 * assets_workers,
-            nb_workers=assets_workers,
+        self.asset_executor = Parallel(
+            n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
         )
 
         self.stats_items_done = 0
@@ -394,24 +391,21 @@ class Processor:
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
             self.stats_items_total += len(self.items_to_download)
-            self.asset_executor.start()
-            for asset_path, asset_details in self.items_to_download.items():
-                self.stats_items_done += 1
-                run_pending()
-                if self.asset_executor.exception:
-                    break
-                self.asset_executor.submit(
-                    self.asset_processor.process_asset,
-                    asset_path=asset_path,
-                    asset_details=asset_details,
-                    creator=creator,
-                    raises=True,
-                )
-            self.asset_executor.shutdown()
 
-            if len(self.asset_executor.exceptions) > 0:
+            try:
+                res = self.asset_executor(
+                    delayed(self.asset_processor.process_asset)(
+                        asset_path, asset_details, creator
+                    )
+                    for asset_path, asset_details in self.items_to_download.items()
+                )
+                for _ in res:
+                    self.stats_items_done += 1
+                    run_pending()
+            except Exception as exc:
                 logger.error(
-                    "Exception occured during assets processing, aborting ZIM creation"
+                    "Exception occured during assets processing, aborting ZIM creation",
+                    exc_info=exc,
                 )
                 creator.can_finish = False
 

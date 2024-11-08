@@ -58,13 +58,9 @@ class AssetProcessor:
         creator: Creator,
     ):
         logger.debug(f"Processing asset for {asset_path}")
-        try:
-            self._process_asset_internal(
-                asset_path=asset_path, asset_details=asset_details, creator=creator
-            )
-        except Exception as exc:
-            logger.exception("Error occured", exc)
-            raise
+        self._process_asset_internal(
+            asset_path=asset_path, asset_details=asset_details, creator=creator
+        )
 
     @backoff.on_exception(
         backoff.expo,
