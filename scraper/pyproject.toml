@@ -8,8 +8,6 @@ requires-python = ">=3.12,<3.13"
 description = "Make ZIM file from Mindtouch / Nice CXone Expert libraries"
 readme = "../README.md"
 dependencies = [
-  "yt-dlp",                      # youtube-dl should be updated as frequently as possible
-  "jinja2==3.1.4",
   # use zimscraperlib pinned version once content rewriting functions have been released
   "zimscraperlib @ git+https://github.com/openzim/python-scraperlib@small_changes",
   "requests==2.32.3",
