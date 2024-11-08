@@ -8,7 +8,7 @@ from zimscraperlib.constants import (
     MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH,
     RECOMMENDED_MAX_TITLE_LENGTH,
 )
-from zimscraperlib.zim.filesystem import validate_zimfile_creatable
+from zimscraperlib.zim.filesystem import validate_folder_writable
 
 from mindtouch2zim.client import MindtouchClient
 from mindtouch2zim.constants import (
@@ -238,11 +238,11 @@ def main(tmpdir: str) -> None:
 
     output_folder = Path(args.output_folder)
     output_folder.mkdir(exist_ok=True)
-    validate_zimfile_creatable(output_folder, "test.txt")
+    validate_folder_writable(output_folder)
 
     tmp_folder = Path(args.tmp_folder)
     tmp_folder.mkdir(exist_ok=True)
-    validate_zimfile_creatable(tmp_folder, "test.txt")
+    validate_folder_writable(tmp_folder)
 
     library_url = str(args.library_url).rstrip("/")
 

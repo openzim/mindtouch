@@ -25,7 +25,7 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 from zimscraperlib.zim import Creator
-from zimscraperlib.zim.filesystem import validate_zimfile_creatable
+from zimscraperlib.zim.filesystem import validate_file_creatable
 from zimscraperlib.zim.indexing import IndexData
 
 from mindtouch2zim.asset import AssetDetails, AssetProcessor
@@ -203,7 +203,7 @@ class Processor:
                 logger.error(f"  {zim_path} already exists, aborting.")
                 raise SystemExit(2)
 
-        validate_zimfile_creatable(self.output_folder, zim_file_name)
+        validate_file_creatable(self.output_folder, zim_file_name)
 
         logger.info(f"  Writing to: {zim_path}")
 
