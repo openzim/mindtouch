@@ -14,7 +14,6 @@ dependencies = [
   "types-requests==2.32.0.20240914",
   "kiwixstorage==0.9.0",
   "pydantic==2.9.1",
-  "pyhumps==3.8.0",
   "schedule==1.2.2",
   "beautifulsoup4==4.12.3",
   "types-beautifulsoup4==4.12.0.20240907",
