@@ -8,7 +8,7 @@ from zimscraperlib.constants import (
     MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH,
     RECOMMENDED_MAX_TITLE_LENGTH,
 )
-from zimscraperlib.zim.filesystem import validate_zimfile_creatable
+from zimscraperlib.zim.filesystem import validate_folder_writable
 
 from mindtouch2zim.client import MindtouchClient
 from mindtouch2zim.constants import (
@@ -218,17 +218,31 @@ def main(tmpdir: str) -> None:
         dest="illustration_url",
     )
 
+    parser.add_argument(
+        "--optimization-cache",
+        help="URL with credentials to S3 for using as optimization cache",
+        dest="s3_url_with_credentials",
+    )
+
+    parser.add_argument(
+        "--assets-workers",
+        type=int,
+        help=("Number of parallel workers for asset processing (default: 10)"),
+        default=10,
+        dest="assets_workers",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
 
     output_folder = Path(args.output_folder)
     output_folder.mkdir(exist_ok=True)
-    validate_zimfile_creatable(output_folder, "test.txt")
+    validate_folder_writable(output_folder)
 
     tmp_folder = Path(args.tmp_folder)
     tmp_folder.mkdir(exist_ok=True)
-    validate_zimfile_creatable(tmp_folder, "test.txt")
+    validate_folder_writable(tmp_folder)
 
     library_url = str(args.library_url).rstrip("/")
 
@@ -253,6 +267,8 @@ def main(tmpdir: str) -> None:
             stats_file=Path(args.stats_filename) if args.stats_filename else None,
             overwrite_existing_zim=args.overwrite,
             illustration_url=args.illustration_url,
+            s3_url_with_credentials=args.s3_url_with_credentials,
+            assets_workers=args.assets_workers,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

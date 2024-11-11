@@ -6,12 +6,13 @@ from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
 
+import backoff
+from joblib import Parallel, delayed
 from pydantic import BaseModel
+from requests import RequestException
 from requests.exceptions import HTTPError
 from schedule import every, run_pending
-from zimscraperlib.download import (
-    stream_file,  # pyright: ignore[reportUnknownVariableType]
-)
+from zimscraperlib.download import stream_file
 from zimscraperlib.image import convert_image, resize_image
 from zimscraperlib.image.conversion import convert_svg2png
 from zimscraperlib.image.probing import format_for
@@ -24,9 +25,10 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 from zimscraperlib.zim import Creator
-from zimscraperlib.zim.filesystem import validate_zimfile_creatable
+from zimscraperlib.zim.filesystem import validate_file_creatable
 from zimscraperlib.zim.indexing import IndexData
 
+from mindtouch2zim.asset import AssetDetails, AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
     LibraryPageId,
@@ -50,6 +52,7 @@ from mindtouch2zim.ui import (
     PageModel,
     SharedModel,
 )
+from mindtouch2zim.utils import add_item_for, backoff_hdlr
 from mindtouch2zim.zimconfig import ZimConfig
 
 
@@ -121,42 +124,6 @@ class ContentFilter(BaseModel):
         return [page for page in page_tree.pages.values() if page.id in selected_ids]
 
 
-def add_item_for(
-    creator: Creator,
-    path: str,
-    title: str | None = None,
-    *,
-    fpath: Path | None = None,
-    content: bytes | str | None = None,
-    mimetype: str | None = None,
-    is_front: bool | None = None,
-    should_compress: bool | None = None,
-    delete_fpath: bool | None = False,
-    duplicate_ok: bool | None = None,
-    index_data: IndexData | None = None,
-    auto_index: bool = True,
-):
-    """
-    Boilerplate to avoid repeating pyright ignore
-
-    To be removed, once upstream issue is solved, see
-    https://github.com/openzim/libretexts/issues/26
-    """
-    creator.add_item_for(  # pyright: ignore[reportUnknownMemberType]
-        path=path,
-        title=title,
-        fpath=fpath,
-        content=content,
-        mimetype=mimetype,
-        is_front=is_front,
-        should_compress=should_compress,
-        delete_fpath=delete_fpath,
-        duplicate_ok=duplicate_ok,
-        index_data=index_data,
-        auto_index=auto_index,
-    )
-
-
 class Processor:
     """Generates ZIMs based on the user's configuration."""
 
@@ -169,6 +136,8 @@ class Processor:
         zimui_dist: Path,
         stats_file: Path | None,
         illustration_url: str | None,
+        s3_url_with_credentials: str | None,
+        assets_workers: int,
         *,
         overwrite_existing_zim: bool,
     ) -> None:
@@ -191,6 +160,12 @@ class Processor:
         self.stats_file = stats_file
         self.overwrite_existing_zim = overwrite_existing_zim
         self.illustration_url = illustration_url
+        self.asset_processor = AssetProcessor(
+            s3_url_with_credentials=s3_url_with_credentials
+        )
+        self.asset_executor = Parallel(
+            n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
+        )
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning
@@ -228,7 +203,7 @@ class Processor:
                 logger.error(f"  {zim_path} already exists, aborting.")
                 raise SystemExit(2)
 
-        validate_zimfile_creatable(self.output_folder, zim_file_name)
+        validate_file_creatable(self.output_folder, zim_file_name)
 
         logger.info(f"  Writing to: {zim_path}")
 
@@ -334,7 +309,7 @@ class Processor:
             add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
-            self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+            self.items_to_download: dict[ZimPath, AssetDetails] = {}
             self._process_css(
                 css_location=home.screen_css_url,
                 target_filename="screen.css",
@@ -416,31 +391,25 @@ class Processor:
 
             logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
             self.stats_items_total += len(self.items_to_download)
-            for asset_path, asset_urls in self.items_to_download.items():
-                self.stats_items_done += 1
-                run_pending()
-                for asset_url in asset_urls:
-                    try:
-                        asset_content = BytesIO()
-                        stream_file(
-                            asset_url.value,
-                            byte_stream=asset_content,
-                            session=web_session,
-                        )
-                        logger.debug(
-                            f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
-                        )
-                        add_item_for(
-                            creator,
-                            "content/" + asset_path.value,
-                            content=asset_content.getvalue(),
-                        )
-                        break  # file found and added
-                    except HTTPError as exc:
-                        # would make more sense to be a warning, but this is just too
-                        # verbose, at least on geo.libretexts.org many assets are just
-                        # missing
-                        logger.debug(f"Ignoring {asset_path.value} due to {exc}")
+
+            try:
+                res = self.asset_executor(
+                    delayed(self.asset_processor.process_asset)(
+                        asset_path, asset_details, creator
+                    )
+                    for asset_path, asset_details in self.items_to_download.items()
+                )
+                for _ in res:
+                    self.stats_items_done += 1
+                    run_pending()
+            except Exception as exc:
+                logger.error(
+                    "Exception occured during assets processing, aborting ZIM creation",
+                    exc_info=exc,
+                )
+                creator.can_finish = False
+
+        logger.info(f"ZIM creation completed, ZIM is at {zim_path}")
 
         # same reason than self.stats_items_done = 1 at the beginning, we need to add
         # a final item to complete the progress
@@ -479,11 +448,19 @@ class Processor:
         # to use last URL encountered.
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:
-                self.items_to_download[path].update(urls)
+                self.items_to_download[path].urls.update(urls)
             else:
-                self.items_to_download[path] = urls
+                self.items_to_download[path] = AssetDetails(
+                    urls=urls, always_fetch_online=True
+                )
         add_item_for(creator, f"content/{target_filename}", content=result)
 
+    @backoff.on_exception(
+        backoff.expo,
+        RequestException,
+        max_time=16,
+        on_backoff=backoff_hdlr,
+    )
     def _process_page(
         self, creator: Creator, page: LibraryPage, existing_zim_paths: set[ZimPath]
     ):
@@ -506,9 +483,11 @@ class Processor:
         rewriten = rewriter.rewrite(page_content.html_body)
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:
-                self.items_to_download[path].update(urls)
+                self.items_to_download[path].urls.update(urls)
             else:
-                self.items_to_download[path] = urls
+                self.items_to_download[path] = AssetDetails(
+                    urls=urls, always_fetch_online=False
+                )
         add_item_for(
             creator,
             f"content/page_content_{page.id}.json",
@@ -579,7 +558,7 @@ class Processor:
         """Return a converted version of the illustration into favicon"""
         favicon = BytesIO()
         convert_image(illustration, favicon, fmt="ICO")
-        logger.debug("Resizing ZIM illustration")
+        logger.debug("Resizing ZIM favicon")
         resize_image(
             src=favicon,
             width=32,
