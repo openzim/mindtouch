@@ -46,6 +46,7 @@ from mindtouch2zim.constants import (
 from mindtouch2zim.errors import NoIllustrationFoundError
 from mindtouch2zim.html import get_text
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
+from mindtouch2zim.libretexts.glossary import rewrite_glossary
 from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -474,7 +475,13 @@ class Processor:
             post_head_insert=None,
             notify_js_module=None,
         )
-        rewriten = rewriter.rewrite(page_content.html_body)
+        if (
+            self.mindtouch_client.library_url.endswith(".libretexts.org")
+            and page.title == "Glossary"
+        ):
+            rewriten = rewrite_glossary(page_content.html_body)
+        else:
+            rewriten = rewriter.rewrite(page_content.html_body).content
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:
                 self.items_to_download[path].urls.update(urls)
@@ -484,14 +491,12 @@ class Processor:
                 )
         creator.add_item_for(
             f"content/page_content_{page.id}.json",
-            content=PageContentModel(html_body=rewriten.content).model_dump_json(
-                by_alias=True
-            ),
+            content=PageContentModel(html_body=rewriten).model_dump_json(by_alias=True),
         )
         self._add_indexing_item_to_zim(
             creator=creator,
             title=page.title,
-            content=get_text(rewriten.content),
+            content=get_text(rewriten),
             fname=f"page_{page.id}",
             zimui_redirect=page.path,
         )
