@@ -166,3 +166,8 @@ def test_get_home_url(home: MindtouchHome, libretexts_url: str):
 def test_get_home_icons_urls(home: MindtouchHome, home_icons_urls: list[str]):
     """Ensures proper icons urls are retrieved from home of libretexts"""
     assert home.icons_urls == home_icons_urls
+
+
+def test_get_home_js_urls(home: MindtouchHome, home_js_urls: list[str]):
+    """Ensures proper js urls are retrieved from home of libretexts"""
+    assert home.js_urls == home_js_urls

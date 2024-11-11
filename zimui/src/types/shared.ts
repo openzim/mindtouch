@@ -7,6 +7,7 @@ export interface Shared {
   logoPath: string
   rootPagePath: string
   pages: SharedPage[]
+  jsPaths: string[]
 }
 
 export interface PageContent {

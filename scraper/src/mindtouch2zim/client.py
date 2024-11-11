@@ -28,6 +28,7 @@ class MindtouchHome(BaseModel):
     print_css_url: str
     inline_css: list[str]
     icons_urls: list[str]
+    js_urls: list[str]
 
 
 LibraryPageId = str
@@ -184,6 +185,7 @@ class MindtouchClient:
             inline_css=_get_inline_css_from_home(soup),
             home_url=f"{self.library_url}/",
             icons_urls=_get_icons_urls(soup),
+            js_urls=_get_js_urls(soup),
         )
 
     def get_deki_token(self) -> str:
@@ -387,3 +389,9 @@ def _get_icons_urls(soup: BeautifulSoup) -> list[str]:
         "link", {"rel": "icon"}
     )
     return [link.get("href", None) for link in links if link.get("href", None)]
+
+
+def _get_js_urls(soup: BeautifulSoup) -> list[str]:
+    """Returns list of JS scripts to retrieve"""
+    links = soup.find_all("script", {"type": "text/javascript"})
+    return [link.get("src", None) for link in links if link.get("src", None)]

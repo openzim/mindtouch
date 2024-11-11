@@ -22,6 +22,7 @@ class SharedModel(CamelModel):
     logo_path: str
     root_page_path: str
     pages: list[PageModel]
+    js_paths: list[str]
 
 
 class ConfigModel(CamelModel):

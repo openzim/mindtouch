@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import axios, { AxiosError } from 'axios'
 import type { PageContent, Shared, SharedPage } from '@/types/shared'
 import mathjaxService from '@/services/mathjax'
+import jsService from '@/services/js'
 import { WebpMachine, detectWebpSupport } from 'webp-hero'
 
 export type RootState = {
@@ -30,24 +31,32 @@ export const useMainStore = defineStore('main', {
       this.errorMessage = ''
       this.errorDetails = ''
 
-      return axios.get('./content/shared.json').then(
-        (response) => {
-          this.isLoading = false
-          this.shared = response.data as Shared
-          this.pagesByPath = {}
-          this.shared.pages.forEach((page: SharedPage) => {
-            this.pagesByPath[page.path] = page
-          })
-        },
-        (error) => {
-          this.isLoading = false
-          this.shared = null
-          this.errorMessage = 'Failed to load shared data.'
-          if (error instanceof AxiosError) {
-            this.handleAxiosError(error)
+      return axios
+        .get('./content/shared.json')
+        .then(
+          (response) => {
+            this.isLoading = false
+            this.shared = response.data as Shared
+            this.pagesByPath = {}
+            this.shared.pages.forEach((page: SharedPage) => {
+              this.pagesByPath[page.path] = page
+            })
+          },
+          (error) => {
+            this.isLoading = false
+            this.shared = null
+            this.errorMessage = 'Failed to load shared data.'
+            if (error instanceof AxiosError) {
+              this.handleAxiosError(error)
+            }
           }
-        }
-      )
+        )
+        .then(() => {
+          for (const path of this.shared?.jsPaths || []) {
+            console.log('Adding ' + path)
+            jsService.addScript('content/' + path)
+          }
+        })
     },
     async fetchPageContent(page: SharedPage) {
       this.isLoading = true

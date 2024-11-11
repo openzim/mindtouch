@@ -305,6 +305,19 @@ class Processor:
             del welcome_image
 
             self.items_to_download: dict[ZimPath, AssetDetails] = {}
+            self.js_paths: list[ZimPath] = []
+
+            for js_url in home.js_urls:
+                js_http_url = HttpUrl(js_url)
+                js_path = ArticleUrlRewriter.normalize(js_http_url)
+                self.js_paths.append(js_path)
+                if js_path in self.items_to_download:
+                    self.items_to_download[js_path].urls.add(js_http_url)
+                else:
+                    self.items_to_download[js_path] = AssetDetails(
+                        urls={js_http_url}, always_fetch_online=True
+                    )
+
             self._process_css(
                 css_location=home.screen_css_url,
                 target_filename="screen.css",
@@ -337,6 +350,15 @@ class Processor:
                     pages=[
                         PageModel(id=page.id, title=page.title, path=page.path)
                         for page in selected_pages
+                    ],
+                    js_paths=[
+                        ArticleUrlRewriter(
+                            article_url=HttpUrl(
+                                "http://www.acme.com/"  # fake, not used
+                            ),
+                            article_path=ZimPath("index.html"),
+                        ).get_document_uri(path, "")
+                        for path in self.js_paths
                     ],
                 ).model_dump_json(by_alias=True),
             )
