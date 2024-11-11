@@ -52,7 +52,7 @@ from mindtouch2zim.ui import (
     PageModel,
     SharedModel,
 )
-from mindtouch2zim.utils import add_item_for, backoff_hdlr
+from mindtouch2zim.utils import backoff_hdlr
 from mindtouch2zim.zimconfig import ZimConfig
 
 
@@ -234,8 +234,7 @@ class Processor:
         # Start creator early to detect problems early.
         with creator as creator:
 
-            add_item_for(
-                creator,
+            creator.add_item_for(
                 "favicon.ico",
                 content=self._fetch_favicon_from_illustration(
                     zim_illustration
@@ -244,8 +243,7 @@ class Processor:
             del zim_illustration
 
             logger.info("  Storing configuration...")
-            add_item_for(
-                creator,
+            creator.add_item_for(
                 "content/config.json",
                 content=ConfigModel(
                     secondary_color=self.zim_config.secondary_color
@@ -266,8 +264,7 @@ class Processor:
                 logger.debug(f"Adding {path} to ZIM")
                 if path == "index.html":  # Change index.html title and add to ZIM
                     index_html_path = self.zimui_dist / path
-                    add_item_for(
-                        creator=creator,
+                    creator.add_item_for(
                         path=path,
                         content=index_html_path.read_text(encoding="utf-8").replace(
                             "<title>Vite App</title>",
@@ -277,8 +274,7 @@ class Processor:
                         is_front=True,
                     )
                 else:
-                    add_item_for(
-                        creator=creator,
+                    creator.add_item_for(
                         path=path,
                         fpath=file,
                         is_front=False,
@@ -295,8 +291,7 @@ class Processor:
                     continue
                 path = str(Path(file).relative_to(mathjax.parent))
                 logger.debug(f"Adding {path} to ZIM")
-                add_item_for(
-                    creator=creator,
+                creator.add_item_for(
                     path=path,
                     fpath=file,
                     is_front=False,
@@ -306,7 +301,7 @@ class Processor:
             stream_file(
                 home.welcome_image_url, byte_stream=welcome_image, session=web_session
             )
-            add_item_for(creator, "content/logo.png", content=welcome_image.getvalue())
+            creator.add_item_for("content/logo.png", content=welcome_image.getvalue())
             del welcome_image
 
             self.items_to_download: dict[ZimPath, AssetDetails] = {}
@@ -334,8 +329,7 @@ class Processor:
                 f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "
                 "fetched and pushed to the ZIM"
             )
-            add_item_for(
-                creator,
+            creator.add_item_for(
                 "content/shared.json",
                 content=SharedModel(
                     logo_path="content/logo.png",
@@ -453,7 +447,7 @@ class Processor:
                 self.items_to_download[path] = AssetDetails(
                     urls=urls, always_fetch_online=True
                 )
-        add_item_for(creator, f"content/{target_filename}", content=result)
+        creator.add_item_for(f"content/{target_filename}", content=result)
 
     @backoff.on_exception(
         backoff.expo,
@@ -488,8 +482,7 @@ class Processor:
                 self.items_to_download[path] = AssetDetails(
                     urls=urls, always_fetch_online=False
                 )
-        add_item_for(
-            creator,
+        creator.add_item_for(
             f"content/page_content_{page.id}.json",
             content=PageContentModel(html_body=rewriten.content).model_dump_json(
                 by_alias=True
@@ -591,8 +584,7 @@ class Processor:
         )
 
         logger.debug(f"Adding {fname} to ZIM index")
-        add_item_for(
-            creator=creator,
+        creator.add_item_for(
             title=title,
             path="index/" + fname,
             content=html_content.encode("utf-8"),

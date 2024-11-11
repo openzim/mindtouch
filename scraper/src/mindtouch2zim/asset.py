@@ -14,7 +14,7 @@ from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import logger, web_session
-from mindtouch2zim.utils import add_item_for, backoff_hdlr
+from mindtouch2zim.utils import backoff_hdlr
 
 SUPPORTED_IMAGE_MIME_TYPES = {
     "image/jpeg",
@@ -84,8 +84,7 @@ class AssetProcessor:
                 logger.debug(
                     f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
                 )
-                add_item_for(
-                    creator=creator,
+                creator.add_item_for(
                     path="content/" + asset_path.value,
                     content=asset_content.getvalue(),
                 )

@@ -19,9 +19,6 @@ RUN apt-get update \
      && python -m pip install --no-cache-dir -U \
      pip
 
-# Custom entrypoint
-COPY scraper/entrypoint.sh /usr/local/bin/entrypoint.sh
-ENTRYPOINT ["entrypoint.sh"]
 RUN mkdir -p /output
 WORKDIR /output
 
