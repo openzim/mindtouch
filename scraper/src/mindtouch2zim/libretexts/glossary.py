@@ -20,7 +20,7 @@ def _get_formatted_glossary_row(row) -> str:
     )
 
 
-def rewrite_glossary(original_content: str) -> str:
+def rewrite_glossary(original_content: str) -> str | None:
     """Statically rewrite the glossary of libretexts.org
 
     Only word and description columns are supported.
@@ -33,17 +33,12 @@ def rewrite_glossary(original_content: str) -> str:
 
     glossary_table = None
 
-    for table in soup.find_all("table"):
-        if not table.caption:
-            continue
-        if table.caption and table.caption.text.strip() == "Example and Directions":
-            continue
-        if glossary_table:
-            raise GlossaryRewriteError("Too many glossary tables")
-        glossary_table = table
-
-    if not glossary_table:
-        raise GlossaryRewriteError("Glossary table not found")
+    tables = soup.find_all("table")
+    if len(tables) == 0:
+        # looks like this glossary is not using default template ; let's rewrite as
+        # a normal page
+        return None
+    glossary_table = tables[-1]
 
     tbody = glossary_table.find("tbody")
     if not tbody:

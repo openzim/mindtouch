@@ -475,11 +475,12 @@ class Processor:
             post_head_insert=None,
             notify_js_module=None,
         )
-        if (
-            self.mindtouch_client.library_url.endswith(".libretexts.org")
-            and page.title == "Glossary"
+        if self.mindtouch_client.library_url.endswith(".libretexts.org") and re.match(
+            r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path
         ):
             rewriten = rewrite_glossary(page_content.html_body)
+            if not rewriten:
+                rewriten = rewriter.rewrite(page_content.html_body).content
         else:
             rewriten = rewriter.rewrite(page_content.html_body).content
         for path, urls in url_rewriter.items_to_download.items():
