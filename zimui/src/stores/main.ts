@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import axios, { AxiosError } from 'axios'
 import type { PageContent, Shared, SharedPage } from '@/types/shared'
 import mathjaxService from '@/services/mathjax'
+import collapseService from '@/services/collapse'
 import { WebpMachine, detectWebpSupport } from 'webp-hero'
 
 export type RootState = {
@@ -79,6 +80,9 @@ export const useMainStore = defineStore('main', {
             const webpMachine = new WebpMachine()
             webpMachine.polyfillDocument()
           }
+        })
+        .then(() => {
+          collapseService.handle_page_load()
         })
     },
     checkResponseObject(response: unknown, msg: string = '') {
