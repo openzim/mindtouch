@@ -74,3 +74,41 @@ p.glossaryElement {
     line-height: 0.9em;
   }
 }
+
+/* additional CSS for libretexts.org index pages, reproduced here for simplificity
+and maintainability (less sensitive to file move upstream) */
+
+.indexPages {
+  margin-left: 1.2em;
+}
+
+#indexLetterList {
+  text-align: center;
+}
+
+.termDiv p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+h2.indexRowHeadCells {
+  font-size: 2.1rem !important;
+}
+
+@media print {
+  div.pagesTextDiv {
+    font-size: 0.75em;
+  }
+
+  .termDiv {
+    break-inside: avoid !important;
+  }
+
+  #indexLetterList {
+    display: none;
+  }
+
+  .letterDiv:first-child h2.indexRowHeadCells {
+    margin-top: 0 !important;
+  }
+}
