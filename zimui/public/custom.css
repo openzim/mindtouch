@@ -49,3 +49,28 @@ a[href^="https://"]:after
   height: auto;
   display: block;
 }
+
+/* additional CSS for libretexts.org glossary pages, reproduced here for simplificity
+and maintainability (less sensitive to file move upstream)
+*/
+
+.glossaryTerm {
+  font-weight: bold;
+}
+
+p.glossaryElement {
+  font-size: 1em;
+  margin: 0.5rem 0 1em;
+}
+
+@media print {
+  .glossaryDefinition {
+    font-size: 0.85em;
+  }
+  p.glossaryElement {
+    break-inside: avoid;
+    margin: 0.4rem 0;
+    font-size: 0.9em;
+    line-height: 0.9em;
+  }
+}
