@@ -32,7 +32,7 @@ def rewrite_index(
         jinja2_template=jinja2_template,
         libretexts_template_content=rewriter.rewrite(
             mindtouch_client.get_template_content(
-                page_id=mindtouch_client.get_page_parent_book_id(page.id),
+                page_id=mindtouch_client.get_cover_page_id(page),
                 template="=Template%253AMindTouch%252FIDF3%252FViews%252FTag_directory",
             )
         ).content,
