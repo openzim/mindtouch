@@ -137,6 +137,24 @@ def test_get_home_page_content(client: MindtouchClient, page_tree: LibraryTree):
     assert client.get_page_content(page_tree.root).html_body
 
 
+def test_get_index_page_from_template(
+    client: MindtouchClient,
+    deki_token: str,  # noqa: ARG001
+):
+    """Ensures we can get content of an index page"""
+    assert client.get_template_content(
+        page_id=client.get_page_parent_book_id("15837"),
+        template="=Template%253AMindTouch%252FIDF3%252FViews%252FTag_directory",
+    )
+
+
+def test_get_page_parent_book_id(
+    client: MindtouchClient,
+    deki_token: str,  # noqa: ARG001
+):
+    assert client.get_page_parent_book_id("15837") == "15718"
+
+
 def test_get_home_screen_css_url(home: MindtouchHome):
     """Ensures proper screen CSS url is retrieved"""
     assert re.match(
