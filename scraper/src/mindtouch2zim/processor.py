@@ -478,6 +478,12 @@ class Processor:
         if self.mindtouch_client.library_url.endswith(".libretexts.org") and re.match(
             r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path
         ):
+            # glossary pages on libretexts.org, e.g. "Courses/California_State_Universi
+            # ty_Los_Angeles/Book:_An_Introduction_to_Geology_(Johnson_Affolter_Inkenbr
+            # andt_and_Mosher)/zz:_Back_Matter/20:_Glossary", running at https://geo.li
+            # bretexts.org/Courses/California_State_University_Los_Angeles/Book%3A_An_I
+            # ntroduction_to_Geology_(Johnson_Affolter_Inkenbrandt_and_Mosher)/zz%3A_Ba
+            # ck_Matter/20%3A_Glossary
             rewriten = rewrite_glossary(page_content.html_body)
             if not rewriten:
                 rewriten = rewriter.rewrite(page_content.html_body).content
