@@ -1,4 +1,6 @@
 from bs4 import BeautifulSoup
+from jinja2 import Template
+from pydantic import BaseModel
 
 
 class GlossaryRewriteError(Exception):
@@ -7,20 +9,12 @@ class GlossaryRewriteError(Exception):
     pass
 
 
-def _get_formatted_glossary_row(row) -> str:
-    """Format one row as HTML"""
-    word = row.find("td", attrs={"data-th": "Word(s)"}).text
-    definition = row.find("td", attrs={"data-th": "Definition"}).text
-    return (
-        '<p class="glossaryElement">\n'
-        f'  <span class="glossaryTerm">{word}</span>\n'
-        "  |\n"
-        f'  <span class="glossaryDefinition">{definition}</span>\n'
-        "</p>\n"
-    )
+class GlossaryEntry(BaseModel):
+    word: str
+    definition: str
 
 
-def rewrite_glossary(original_content: str) -> str | None:
+def rewrite_glossary(jinja2_template: Template, original_content: str) -> str | None:
     """Statically rewrite the glossary of libretexts.org
 
     Only word and description columns are supported.
@@ -46,7 +40,15 @@ def rewrite_glossary(original_content: str) -> str | None:
 
     glossary_table.insert_after(
         BeautifulSoup(
-            "".join([_get_formatted_glossary_row(row) for row in tbody.find_all("tr")]),
+            jinja2_template.render(
+                entries=[
+                    GlossaryEntry(
+                        word=row.find("td", attrs={"data-th": "Word(s)"}).text,
+                        definition=row.find("td", attrs={"data-th": "Definition"}).text,
+                    )
+                    for row in tbody.find_all("tr")
+                ]
+            ),
             "html.parser",  # prefer html.parser to not add <html><body> tags
         )
     )

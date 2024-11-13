@@ -1,0 +1,29 @@
+<p id="indexLetterList">
+  {% for letter in letters.keys() %}
+  <a href="#indexHeadRow{{ letter }}">{{ letter }}</a>{% if not loop.last %} • {% endif %} {% endfor
+  %}
+</p>
+
+<div id="indexTable">
+  {% for letter_char, letter_obj in letters.items() %}
+  <div class="letterDiv" id="letterDiv{{ letter_char }}">
+    <div class="indexBodyRows" id="indexRow{{ letter_char }}">
+      <h2 class="indexRowHeadCells" id="indexHeadRow{{ letter_char }}">{{ letter_char }}</h2>
+
+      {% for item in letter_obj.items %}
+      <div class="termDiv">
+        <p>{{ item.term }}</p>
+        <div class="pagesTextDiv">
+          {% for page in item.pages %}
+          <a title="{{ page.title }}" href="{{ page.href }}" class="indexPages">
+            {{ page.title }}
+          </a>
+          <br />
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
