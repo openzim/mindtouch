@@ -5,43 +5,110 @@ from mindtouch2zim.processor import ContentFilter
 
 
 @pytest.fixture(scope="module")
-def library_tree() -> LibraryTree:
-    root = LibraryPage(id="24", title="Home page", path="")
+def dummy_encoded_url() -> str:
+    return "https://www.acme.com/A_Page"
+
+
+@pytest.fixture(scope="module")
+def library_tree(dummy_encoded_url) -> LibraryTree:
+    root = LibraryPage(
+        id="24", title="Home page", path="", encoded_url=dummy_encoded_url
+    )
     topic1 = LibraryPage(
-        id="25", title="1: First topic", path="1_First_Topic", parent=root
+        id="25",
+        title="1: First topic",
+        path="1_First_Topic",
+        parent=root,
+        encoded_url=dummy_encoded_url,
     )
     root.children.append(topic1)
-    topic1_1 = LibraryPage(id="26", title="1.1: Cloud", path="1.1_Cloud", parent=topic1)
+    topic1_1 = LibraryPage(
+        id="26",
+        title="1.1: Cloud",
+        path="1.1_Cloud",
+        parent=topic1,
+        encoded_url=dummy_encoded_url,
+    )
     topic1.children.append(topic1_1)
-    topic1_2 = LibraryPage(id="27", title="1.2: Tree", path="1.2_Tree", parent=topic1)
+    topic1_2 = LibraryPage(
+        id="27",
+        title="1.2: Tree",
+        path="1.2_Tree",
+        parent=topic1,
+        encoded_url=dummy_encoded_url,
+    )
     topic1.children.append(topic1_2)
-    topic1_3 = LibraryPage(id="28", title="1.3: Bees", path="1.3_Bees", parent=topic1)
+    topic1_3 = LibraryPage(
+        id="28",
+        title="1.3: Bees",
+        path="1.3_Bees",
+        parent=topic1,
+        encoded_url=dummy_encoded_url,
+    )
     topic1.children.append(topic1_3)
     topic2 = LibraryPage(
-        id="29", title="2: Second topic", path="2_Second_Topic", parent=root
+        id="29",
+        title="2: Second topic",
+        path="2_Second_Topic",
+        parent=root,
+        encoded_url=dummy_encoded_url,
     )
     root.children.append(topic2)
     topic2_1 = LibraryPage(
-        id="30", title="2.1: Underground", path="2.1_Underground", parent=topic2
+        id="30",
+        title="2.1: Underground",
+        path="2.1_Underground",
+        parent=topic2,
+        encoded_url=dummy_encoded_url,
     )
     topic2.children.append(topic2_1)
-    topic2_2 = LibraryPage(id="31", title="2.2: Lava", path="2.2_Lava", parent=topic2)
+    topic2_2 = LibraryPage(
+        id="31",
+        title="2.2: Lava",
+        path="2.2_Lava",
+        parent=topic2,
+        encoded_url=dummy_encoded_url,
+    )
     topic2.children.append(topic2_2)
     topic2_3 = LibraryPage(
-        id="32", title="2.3: Volcano", path="2.3_Volcano", parent=topic2
+        id="32",
+        title="2.3: Volcano",
+        path="2.3_Volcano",
+        parent=topic2,
+        encoded_url=dummy_encoded_url,
     )
     topic2.children.append(topic2_3)
     topic3 = LibraryPage(
-        id="33", title="3: Third topic", path="3_Third_Topic", parent=root
+        id="33",
+        title="3: Third topic",
+        path="3_Third_Topic",
+        parent=root,
+        encoded_url=dummy_encoded_url,
     )
     root.children.append(topic3)
     topic3_1 = LibraryPage(
-        id="34", title="3.1: Ground", path="3.1_Ground", parent=topic3
+        id="34",
+        title="3.1: Ground",
+        path="3.1_Ground",
+        parent=topic3,
+        encoded_url=dummy_encoded_url,
     )
     topic3.children.append(topic3_1)
-    topic3_2 = LibraryPage(id="35", title="3.2: Earth", path="3.2_Earth", parent=topic3)
+    topic3_2 = LibraryPage(
+        id="35",
+        title="3.2: Earth",
+        path="3.2_Earth",
+        parent=topic3,
+        encoded_url=dummy_encoded_url,
+    )
     topic3.children.append(topic3_2)
-    topic3_3 = LibraryPage(id="36", title="3.3: Sky", path="3.3_Sky", parent=topic3)
+    topic3_3 = LibraryPage(
+        id="36",
+        title="3.3: Sky",
+        path="3.3_Sky",
+        parent=topic3,
+        encoded_url=dummy_encoded_url,
+    )
     topic3.children.append(topic3_3)
     return LibraryTree(
         root=root,

@@ -484,7 +484,7 @@ class Processor:
         """
         logger.debug(f"  Fetching {page.id}")
         mindtouch2zim.html_rewriting.rewriting_context = (
-            f"page {page.id} at {page.path}"
+            f"page {page.id} at {page.encoded_url}"
         )
         page_content = self.mindtouch_client.get_page_content(page)
         url_rewriter = HtmlUrlsRewriter(
