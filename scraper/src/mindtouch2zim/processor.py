@@ -29,6 +29,7 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_file_creatable
 from zimscraperlib.zim.indexing import IndexData
 
+import mindtouch2zim.constants
 from mindtouch2zim.asset import AssetDetails, AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
@@ -144,6 +145,7 @@ class Processor:
         assets_workers: int,
         *,
         overwrite_existing_zim: bool,
+        warn_only_on_html_issues: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -170,6 +172,8 @@ class Processor:
         self.asset_executor = Parallel(
             n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
         )
+
+        mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES = warn_only_on_html_issues
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning

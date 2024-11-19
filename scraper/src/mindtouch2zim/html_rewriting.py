@@ -13,6 +13,7 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 
+import mindtouch2zim.constants
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.constants import logger
 from mindtouch2zim.errors import UnsupportedHrefSrcError, UnsupportedTagError
@@ -52,9 +53,15 @@ def rewrite_href_src_attributes(
         )
     if not new_attr_value:
         # we do not (yet) support other tags / attributes so we fail the scraper
-        raise UnsupportedHrefSrcError(
-            f"Unsupported {attr_name} encountered in {tag} tag (value: {attr_value})"
+        msg = (
+            f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
+            f"'{attr_value}')"
         )
+        if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
+            raise UnsupportedHrefSrcError(msg)
+        else:
+            logger.warning(msg)
+            return
     return (attr_name, new_attr_value)
 
 
@@ -63,7 +70,12 @@ def refuse_unsupported_tags(tag: str):
     """Stop scraper if unsupported tag is encountered"""
     if tag not in ["picture"]:
         return
-    raise UnsupportedTagError(f"Tag {tag} is not yet supported in this scraper")
+    msg = f"Tag {tag} is not yet supported in this scraper"
+    if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
+        raise UnsupportedTagError(msg)
+    else:
+        logger.warning(msg)
+        return
 
 
 YOUTUBE_IFRAME_RE = re.compile(r".*youtube(?:-\w+)*\.\w+\/embed\/(?P<id>.*?)(?:\?.*)*$")
@@ -84,7 +96,12 @@ def rewrite_iframe_tags(
         raise Exception("Expecting HtmlUrlsRewriter")
     src = get_attr_value_from(attrs=attrs, name="src")
     if not src:
-        raise UnsupportedTagError("Unsupported empty src in iframe")
+        msg = "Unsupported empty src in iframe"
+        if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
+            raise UnsupportedTagError(msg)
+        else:
+            logger.warning(msg)
+            return
     image_rewriten_url = None
     try:
         if ytb_match := YOUTUBE_IFRAME_RE.match(src):

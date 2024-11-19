@@ -225,6 +225,16 @@ def main(tmpdir: str) -> None:
         dest="assets_workers",
     )
 
+    parser.add_argument(
+        "--warn-only-on-html-issues",
+        help="Only log a warning when unexpected HTML is encountered. Use with caution "
+        " because activating this option means that ZIM HTML will probably lead to "
+        " online resources without user noticing it.",
+        action="store_true",
+        default=False,
+        dest="warn_only_on_html_issues",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -262,6 +272,7 @@ def main(tmpdir: str) -> None:
             illustration_url=args.illustration_url,
             s3_url_with_credentials=args.s3_url_with_credentials,
             assets_workers=args.assets_workers,
+            warn_only_on_html_issues=args.warn_only_on_html_issues,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")
