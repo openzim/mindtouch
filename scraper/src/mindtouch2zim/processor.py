@@ -29,6 +29,8 @@ from zimscraperlib.zim import Creator
 from zimscraperlib.zim.filesystem import validate_file_creatable
 from zimscraperlib.zim.indexing import IndexData
 
+import mindtouch2zim.constants
+import mindtouch2zim.html_rewriting
 from mindtouch2zim.asset import AssetDetails, AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
@@ -144,6 +146,7 @@ class Processor:
         assets_workers: int,
         *,
         overwrite_existing_zim: bool,
+        html_issues_warn_only: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -170,6 +173,8 @@ class Processor:
         self.asset_executor = Parallel(
             n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
         )
+
+        mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY = html_issues_warn_only
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning
@@ -478,6 +483,9 @@ class Processor:
         Download content, rewrite HTML and add JSON to ZIM
         """
         logger.debug(f"  Fetching {page.id}")
+        mindtouch2zim.html_rewriting.rewriting_context = (
+            f"page {page.id} at {page.encoded_url}"
+        )
         page_content = self.mindtouch_client.get_page_content(page)
         url_rewriter = HtmlUrlsRewriter(
             self.mindtouch_client.library_url,

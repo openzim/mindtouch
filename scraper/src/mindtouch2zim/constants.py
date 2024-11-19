@@ -16,6 +16,8 @@ LANGUAGE_ISO_639_3 = "eng"
 HTTP_TIMEOUT_NORMAL_SECONDS = 15
 HTTP_TIMEOUT_LONG_SECONDS = 30
 
+HTML_ISSUES_WARN_ONLY = False
+
 logger = getLogger(NAME, level=logging.DEBUG, log_format=DEFAULT_FORMAT_WITH_THREADS)
 
 web_session = get_session()

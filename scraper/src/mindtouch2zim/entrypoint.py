@@ -200,13 +200,6 @@ def main(tmpdir: str) -> None:
     )
 
     parser.add_argument(
-        "--keep-cache",
-        help="Keep cache of website responses",
-        action="store_true",
-        default=False,
-    )
-
-    parser.add_argument(
         "--stats-filename",
         help="Path to store the progress JSON file to.",
         dest="stats_filename",
@@ -230,6 +223,16 @@ def main(tmpdir: str) -> None:
         help=("Number of parallel workers for asset processing (default: 10)"),
         default=10,
         dest="assets_workers",
+    )
+
+    parser.add_argument(
+        "--html-issues-warn-only",
+        help="[dev] Only log a warning when unexpected HTML is encountered. Use with "
+        "caution because activating this option means that ZIM HTML will probably lead "
+        "to online resources without user noticing it.",
+        action="store_true",
+        default=False,
+        dest="html_issues_warn_only",
     )
 
     args = parser.parse_args()
@@ -269,6 +272,7 @@ def main(tmpdir: str) -> None:
             illustration_url=args.illustration_url,
             s3_url_with_credentials=args.s3_url_with_credentials,
             assets_workers=args.assets_workers,
+            html_issues_warn_only=args.html_issues_warn_only,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

@@ -40,7 +40,6 @@ class LibraryPageDefinition(BaseModel):
     with a special call, hence the specific object
     """
 
-    encoded_url: str
     tags: list[str]
 
 
@@ -52,6 +51,7 @@ class LibraryPage(BaseModel):
     path: str
     parent: "LibraryPage | None" = None
     children: list["LibraryPage"] = []
+    encoded_url: str
     definition: LibraryPageDefinition | None = None
 
     def __repr__(self) -> str:
@@ -251,6 +251,7 @@ class MindtouchClient:
             id=tree_data["page"]["@id"],
             title=tree_data["page"]["title"],
             path=tree_data["page"]["path"]["#text"],
+            encoded_url=tree_data["page"]["uri.ui"],
         )
         tree_obj = LibraryTree(root=root)
         tree_obj.pages[root.id] = root
@@ -260,6 +261,7 @@ class MindtouchClient:
                 id=page_node["@id"],
                 title=page_node["title"],
                 path=page_node["path"]["#text"],
+                encoded_url=page_node["uri.ui"],
                 parent=parent,
             )
             parent.children.append(page)
@@ -316,9 +318,6 @@ class MindtouchClient:
             raw_definition = self._get_api_json(
                 f"/pages/{page.id}", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
             )
-            encoded_url = raw_definition.get("uri.ui", None)
-            if encoded_url is None:
-                raise MindtouchParsingError(f"No uri.ui property for page {page.id}")
             raw_tags = raw_definition.get("tags", None)
             if raw_tags is None:
                 raise MindtouchParsingError(f"No tags property for page {page.id}")
@@ -330,7 +329,6 @@ class MindtouchClient:
             else:
                 tags = [raw_tag.get("@value")]
             page.definition = LibraryPageDefinition(
-                encoded_url=encoded_url,
                 tags=tags,
             )
         return page.definition
@@ -363,7 +361,7 @@ class MindtouchClient:
 
     def get_cover_page_encoded_url(self, page: LibraryPage) -> str:
         """Returns the url for the book page for a given child page"""
-        return self.get_page_definition(self.get_cover_page(page)).encoded_url
+        return self.get_cover_page(page).encoded_url
 
     def get_cover_page_id(self, page: LibraryPage) -> str:
         """Returns the id for the book page for a given child page"""

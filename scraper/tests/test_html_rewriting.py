@@ -14,7 +14,12 @@ from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
 def url_rewriter() -> HtmlUrlsRewriter:
     return HtmlUrlsRewriter(
         library_url="https://www.acme.com",
-        page=LibraryPage(id="123", title="a page", path="A_Page"),
+        page=LibraryPage(
+            id="123",
+            title="a page",
+            path="A_Page",
+            encoded_url="https://www.acme.com/A_Page",
+        ),
         existing_zim_paths={
             ZimPath("www.acme.com/existing.html"),
         },
