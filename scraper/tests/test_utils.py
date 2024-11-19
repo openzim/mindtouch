@@ -76,6 +76,8 @@ def test_get_asset_path_from_url(
         pytest.param("3x", "1024w", False, id="x_w_mixed2"),
         pytest.param("3w", "1024x", False, id="x_w_mixed3"),
         pytest.param("1024x", "3w", False, id="x_w_mixed4"),
+        pytest.param("3.5x", "1.5x", True, id="x_current_better_float"),
+        pytest.param("1.5x", "2.5x", False, id="x_current_worse_float"),
     ],
 )
 def test_is_better_srcset_descriptor(
