@@ -200,13 +200,6 @@ def main(tmpdir: str) -> None:
     )
 
     parser.add_argument(
-        "--keep-cache",
-        help="Keep cache of website responses",
-        action="store_true",
-        default=False,
-    )
-
-    parser.add_argument(
         "--stats-filename",
         help="Path to store the progress JSON file to.",
         dest="stats_filename",
