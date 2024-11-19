@@ -139,20 +139,34 @@ def test_get_home_page_content(client: MindtouchClient, page_tree: LibraryTree):
 
 def test_get_index_page_from_template(
     client: MindtouchClient,
-    deki_token: str,  # noqa: ARG001
+    page_tree: LibraryTree,
 ):
     """Ensures we can get content of an index page"""
+    page_15837 = page_tree.sub_tree("15837").root
     assert client.get_template_content(
-        page_id=client.get_page_parent_book_id("15837"),
+        page_id=client.get_cover_page_id(page_15837),
         template="=Template%253AMindTouch%252FIDF3%252FViews%252FTag_directory",
     )
 
 
-def test_get_page_parent_book_id(
+def test_get_cover_page_encoded_url(
     client: MindtouchClient,
-    deki_token: str,  # noqa: ARG001
+    page_tree: LibraryTree,
 ):
-    assert client.get_page_parent_book_id("15837") == "15718"
+    page_15837 = page_tree.sub_tree("15837").root
+    assert (
+        client.get_cover_page_encoded_url(page_15837)
+        == "https://geo.libretexts.org/Courses/California_State_University_Los_Angeles/"
+        "Book%3A_An_Introduction_to_Geology_(Johnson_Affolter_Inkenbrandt_and_Mosher)"
+    )
+
+
+def test_get_cover_page_id(
+    client: MindtouchClient,
+    page_tree: LibraryTree,
+):
+    page_15837 = page_tree.sub_tree("15837").root
+    assert client.get_cover_page_id(page_15837) == "15718"
 
 
 def test_get_home_screen_css_url(home: MindtouchHome):

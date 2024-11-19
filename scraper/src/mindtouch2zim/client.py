@@ -33,6 +33,17 @@ class MindtouchHome(BaseModel):
 LibraryPageId = str
 
 
+class LibraryPageDefinition(BaseModel):
+    """Class holding detailed information about a given library page on the library tree
+
+    These details are not available when exploring a site tree, and needs to be fetched
+    with a special call, hence the specific object
+    """
+
+    encoded_url: str
+    tags: list[str]
+
+
 class LibraryPage(BaseModel):
     """Class holding information about a given library page on the library tree"""
 
@@ -41,6 +52,7 @@ class LibraryPage(BaseModel):
     path: str
     parent: "LibraryPage | None" = None
     children: list["LibraryPage"] = []
+    definition: LibraryPageDefinition | None = None
 
     def __repr__(self) -> str:
         return (
@@ -295,28 +307,67 @@ class MindtouchClient:
             )
         return LibraryPageContent(html_body=tree["body"][0])
 
-    def get_page_definition(self, page_id: LibraryPageId) -> Any:
-        """Returns the definition on a given page"""
-        return self._get_api_json(
-            f"/pages/{page_id}", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
-        )
+    def get_page_definition(self, page: LibraryPage) -> LibraryPageDefinition:
+        """Return the definition of a given page
 
-    def get_page_parent_book_id(self, page_id: LibraryPageId) -> str:
-        """Returns the id for the book page for a given child page"""
-        current = self.get_page_definition(page_id)
+        Definition is kept in memory, and retrieved on-demand when it is not yet there
+        """
+        if page.definition is None:
+            raw_definition = self._get_api_json(
+                f"/pages/{page.id}", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
+            )
+            encoded_url = raw_definition.get("uri.ui", None)
+            if encoded_url is None:
+                raise MindtouchParsingError(f"No uri.ui property for page {page.id}")
+            raw_tags = raw_definition.get("tags", None)
+            if raw_tags is None:
+                raise MindtouchParsingError(f"No tags property for page {page.id}")
+            raw_tag = raw_tags.get("tag", None)
+            if raw_tag is None:
+                raise MindtouchParsingError(f"No tag property for page {page.id}")
+            if isinstance(raw_tag, list):
+                tags = [item.get("@value") for item in raw_tag]
+            else:
+                tags = [raw_tag.get("@value")]
+            page.definition = LibraryPageDefinition(
+                encoded_url=encoded_url,
+                tags=tags,
+            )
+        return page.definition
+
+    def get_cover_page(self, page: LibraryPage) -> LibraryPage:
+        """Get the cover page of a given page
+
+        Logic originally defined in `getCoverpage` function of
+        https://cdn.libretexts.net/github/LibreTextsMain/Miscellaneous/reuse.js
+
+        Probably originates from getCoverpage function of
+        https://github.com/LibreTexts/Libretext/blob/master/public/Miscellaneous/reuse.js
+
+        See https://github.com/openzim/mindtouch/issues/68 for a copy of original code
+        """
+        current_page = page
         while True:
-            parent = current.get("page.parent", None)
-            if parent is None:
-                raise MindtouchParsingError(f"No more parent for {page_id}")
-            parent_id = parent.get("@id", None)
-            if parent_id is None:
-                raise MindtouchParsingError(f"id is missing for {page_id}")
-            article = parent.get("article", None)
-            if article is None:
-                raise MindtouchParsingError(f"article is missing for {page_id}")
-            if article == "topic-category":
-                return parent_id
-            current = parent
+            current_definition = self.get_page_definition(current_page)
+            if (
+                "coverpage:yes" in current_definition.tags
+                or "coverpage:toc" in current_definition.tags
+                or "coverpage:nocommons" in current_definition.tags
+            ):
+                return current_page
+            if current_page.parent is None:
+                raise MindtouchParsingError(
+                    f"No more parent for {page.id}, reached root at {current_page.id}"
+                )
+            current_page = current_page.parent
+
+    def get_cover_page_encoded_url(self, page: LibraryPage) -> str:
+        """Returns the url for the book page for a given child page"""
+        return self.get_page_definition(self.get_cover_page(page)).encoded_url
+
+    def get_cover_page_id(self, page: LibraryPage) -> str:
+        """Returns the id for the book page for a given child page"""
+        return self.get_cover_page(page).id
 
     def get_template_content(self, page_id: str, template: str) -> str:
         """Returns the templated content of a given page"""
