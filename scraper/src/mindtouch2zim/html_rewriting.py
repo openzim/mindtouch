@@ -25,6 +25,8 @@ html_rules.rewrite_attribute_rules.clear()
 html_rules.rewrite_data_rules.clear()
 html_rules.rewrite_tag_rules.clear()
 
+rewriting_context = None
+
 
 @html_rules.rewrite_attribute()
 def rewrite_href_src_attributes(
@@ -55,7 +57,7 @@ def rewrite_href_src_attributes(
         # we do not (yet) support other tags / attributes so we fail the scraper
         msg = (
             f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
-            f"'{attr_value}')"
+            f"'{attr_value}') while rewriting {rewriting_context}"
         )
         if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
             raise UnsupportedHrefSrcError(msg)
@@ -70,7 +72,10 @@ def refuse_unsupported_tags(tag: str):
     """Stop scraper if unsupported tag is encountered"""
     if tag not in ["picture"]:
         return
-    msg = f"Tag {tag} is not yet supported in this scraper"
+    msg = (
+        f"Tag {tag} is not yet supported in this scraper, found while rewriting "
+        f"{rewriting_context}"
+    )
     if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
         raise UnsupportedTagError(msg)
     else:
@@ -96,7 +101,10 @@ def rewrite_iframe_tags(
         raise Exception("Expecting HtmlUrlsRewriter")
     src = get_attr_value_from(attrs=attrs, name="src")
     if not src:
-        msg = "Unsupported empty src in iframe"
+        msg = (
+            "Unsupported empty src in iframe, found while rewriting "
+            f"{rewriting_context}"
+        )
         if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
             raise UnsupportedTagError(msg)
         else:

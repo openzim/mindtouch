@@ -30,6 +30,7 @@ from zimscraperlib.zim.filesystem import validate_file_creatable
 from zimscraperlib.zim.indexing import IndexData
 
 import mindtouch2zim.constants
+import mindtouch2zim.html_rewriting
 from mindtouch2zim.asset import AssetDetails, AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
@@ -482,6 +483,9 @@ class Processor:
         Download content, rewrite HTML and add JSON to ZIM
         """
         logger.debug(f"  Fetching {page.id}")
+        mindtouch2zim.html_rewriting.rewriting_context = (
+            f"page {page.id} at {page.path}"
+        )
         page_content = self.mindtouch_client.get_page_content(page)
         url_rewriter = HtmlUrlsRewriter(
             self.mindtouch_client.library_url,
