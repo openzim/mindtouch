@@ -54,7 +54,7 @@ def is_better_srcset_descriptor(
     new_descriptor = new_descriptor.strip()
     if current_best_descriptor[-1:] != new_descriptor[-1:]:
         return False
-    return int(new_descriptor[:-1]) > int(current_best_descriptor[:-1])
+    return float(new_descriptor[:-1]) > float(current_best_descriptor[:-1])
 
 
 def backoff_hdlr(details: Any):
