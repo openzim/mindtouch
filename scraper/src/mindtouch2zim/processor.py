@@ -146,7 +146,7 @@ class Processor:
         assets_workers: int,
         *,
         overwrite_existing_zim: bool,
-        warn_only_on_html_issues: bool,
+        html_issues_warn_only: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -174,7 +174,7 @@ class Processor:
             n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
         )
 
-        mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES = warn_only_on_html_issues
+        mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY = html_issues_warn_only
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning

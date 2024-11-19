@@ -59,7 +59,7 @@ def rewrite_href_src_attributes(
             f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
             f"'{attr_value}') while rewriting {rewriting_context}"
         )
-        if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
+        if not mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY:
             raise UnsupportedHrefSrcError(msg)
         else:
             logger.warning(msg)
@@ -76,7 +76,7 @@ def refuse_unsupported_tags(tag: str):
         f"Tag {tag} is not yet supported in this scraper, found while rewriting "
         f"{rewriting_context}"
     )
-    if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
+    if not mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY:
         raise UnsupportedTagError(msg)
     else:
         logger.warning(msg)
@@ -105,7 +105,7 @@ def rewrite_iframe_tags(
             "Unsupported empty src in iframe, found while rewriting "
             f"{rewriting_context}"
         )
-        if not mindtouch2zim.constants.WARN_ONLY_ON_HTML_ISSUES:
+        if not mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY:
             raise UnsupportedTagError(msg)
         else:
             logger.warning(msg)
