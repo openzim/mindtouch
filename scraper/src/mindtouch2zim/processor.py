@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import backoff
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from joblib import Parallel, delayed
 from pydantic import BaseModel
 from requests import RequestException
@@ -39,6 +40,7 @@ from mindtouch2zim.client import (
 from mindtouch2zim.constants import (
     LANGUAGE_ISO_639_3,
     NAME,
+    ROOT_DIR,
     VERSION,
     logger,
     web_session,
@@ -47,6 +49,7 @@ from mindtouch2zim.errors import NoIllustrationFoundError
 from mindtouch2zim.html import get_text
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
 from mindtouch2zim.libretexts.glossary import rewrite_glossary
+from mindtouch2zim.libretexts.index import rewrite_index
 from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -230,6 +233,18 @@ class Processor:
             Tags=formatted_config.tags,
             Scraper=f"{NAME} v{VERSION}",
             Illustration_48x48_at_1=zim_illustration.getvalue(),
+        )
+
+        # jinja2 environment setup
+        self.jinja2_env = Environment(
+            loader=FileSystemLoader(ROOT_DIR.joinpath("templates")),
+            autoescape=select_autoescape(),
+        )
+        self.libretexts_glossary_template = self.jinja2_env.get_template(
+            "libretexts.glossary.html"
+        )
+        self.libretexts_index_template = self.jinja2_env.get_template(
+            "libretexts.index.html"
         )
 
         # Start creator early to detect problems early.
@@ -475,19 +490,30 @@ class Processor:
             post_head_insert=None,
             notify_js_module=None,
         )
-        if self.mindtouch_client.library_url.endswith(".libretexts.org") and re.match(
-            r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path
-        ):
-            # glossary pages on libretexts.org, e.g. "Courses/California_State_Universi
-            # ty_Los_Angeles/Book:_An_Introduction_to_Geology_(Johnson_Affolter_Inkenbr
-            # andt_and_Mosher)/zz:_Back_Matter/20:_Glossary", running at https://geo.li
-            # bretexts.org/Courses/California_State_University_Los_Angeles/Book%3A_An_I
-            # ntroduction_to_Geology_(Johnson_Affolter_Inkenbrandt_and_Mosher)/zz%3A_Ba
-            # ck_Matter/20%3A_Glossary
-            rewriten = rewrite_glossary(page_content.html_body)
-            if not rewriten:
-                rewriten = rewriter.rewrite(page_content.html_body).content
-        else:
+        rewriten = None
+        # Handle special rewriting of special libretexts.org pages
+        if self.mindtouch_client.library_url.endswith(".libretexts.org"):
+            # back-matter special pages on libretexts.org, e.g. "Courses/California_Stat
+            # e_University_Los_Angeles/Book:_An_Introduction_to_Geology_(Johnson_Affolte
+            # r_Inkenbrandt_and_Mosher)/zz:_Back_Matter/20:_Glossary", running at https:
+            # //geo.libretexts.org/Courses/California_State_University_Los_Angeles/Book%
+            # 3A_An_Introduction_to_Geology_(Johnson_Affolter_Inkenbrandt_and_Mosher)/zz
+            # %3A_Back_Matter/20%3A_Glossary
+            # same kind of pattern works for glossary, index, ... pages
+            if re.match(r"^.*\/zz:_[^\/]*?\/10:_[^\/]*$", page.path):
+                rewriten = rewrite_index(
+                    rewriter=rewriter,
+                    jinja2_template=self.libretexts_index_template,
+                    mindtouch_client=self.mindtouch_client,
+                    page=page,
+                )
+            elif re.match(r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path):
+                rewriten = rewrite_glossary(
+                    jinja2_template=self.libretexts_glossary_template,
+                    original_content=page_content.html_body,
+                )
+        if not rewriten:
+            # Default rewriting for 'normal' pages
             rewriten = rewriter.rewrite(page_content.html_body).content
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:

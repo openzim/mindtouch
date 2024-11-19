@@ -1,0 +1,6 @@
+{% for entry in entries %}
+<p class="glossaryElement">
+  <span class="glossaryTerm">{{ entry.word }}</span> |
+  <span class="glossaryDefinition">{{ entry.definition }}</span>
+</p>
+{% endfor %}

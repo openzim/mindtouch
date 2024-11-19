@@ -145,14 +145,19 @@ class MindtouchClient:
         return resp
 
     def _get_api_json(
-        self, api_sub_path: str, timeout: float = HTTP_TIMEOUT_NORMAL_SECONDS
+        self,
+        api_sub_path: str,
+        query_params: str = "",
+        timeout: float = HTTP_TIMEOUT_NORMAL_SECONDS,
     ) -> Any:
-        cache_file = self._get_cache_file(f"api_json{api_sub_path}")
+        cache_file = self._get_cache_file(f"api_json{api_sub_path}{query_params}.dat")
         if cache_file.exists():
             return json.loads(cache_file.read_text())
         cache_file.parent.mkdir(parents=True, exist_ok=True)
+        if query_params:
+            query_params = f"&{query_params}"
         resp = self._get_api_resp(
-            f"{api_sub_path}?dream.out.format=json", timeout=timeout
+            f"{api_sub_path}?dream.out.format=json{query_params}", timeout=timeout
         )
         result = resp.json()
         cache_file.write_text(json.dumps(result))
@@ -289,6 +294,47 @@ class MindtouchClient:
                 "is expected"
             )
         return LibraryPageContent(html_body=tree["body"][0])
+
+    def get_page_definition(self, page_id: LibraryPageId) -> Any:
+        """Returns the definition on a given page"""
+        return self._get_api_json(
+            f"/pages/{page_id}", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
+        )
+
+    def get_page_parent_book_id(self, page_id: LibraryPageId) -> str:
+        """Returns the id for the book page for a given child page"""
+        current = self.get_page_definition(page_id)
+        while True:
+            parent = current.get("page.parent", None)
+            if parent is None:
+                raise MindtouchParsingError(f"No more parent for {page_id}")
+            parent_id = parent.get("@id", None)
+            if parent_id is None:
+                raise MindtouchParsingError(f"id is missing for {page_id}")
+            article = parent.get("article", None)
+            if article is None:
+                raise MindtouchParsingError(f"article is missing for {page_id}")
+            if article == "topic-category":
+                return parent_id
+            current = parent
+
+    def get_template_content(self, page_id: str, template: str) -> str:
+        """Returns the templated content of a given page"""
+        tree = self._get_api_json(
+            f"/pages/{template}/contents",
+            query_params=f"pageid={page_id}",
+            timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
+        )
+        if not tree.get("body", ""):
+            raise MindtouchParsingError(
+                f"Body element is missing for template {template} of page {page_id}"
+            )
+        if not isinstance(tree["body"], str):
+            raise MindtouchParsingError(
+                f"Body element is not a string for template {template} of page "
+                f"{page_id}"
+            )
+        return tree["body"]
 
 
 def _get_welcome_image_url_from_home(soup: BeautifulSoup) -> str:

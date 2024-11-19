@@ -22,6 +22,7 @@ dependencies = [
   "pif==0.8.2",
   "backoff==2.2.1",
   "joblib==1.4.2",
+  "Jinja2==3.1.4",
 ]
 dynamic = ["authors", "classifiers", "keywords", "license", "version", "urls"]
 
