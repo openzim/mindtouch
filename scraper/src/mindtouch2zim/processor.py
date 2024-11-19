@@ -50,6 +50,7 @@ from mindtouch2zim.download import stream_file
 from mindtouch2zim.errors import NoIllustrationFoundError
 from mindtouch2zim.html import get_text
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
+from mindtouch2zim.libretexts.detailed_licensing import rewrite_detailed_licensing
 from mindtouch2zim.libretexts.glossary import rewrite_glossary
 from mindtouch2zim.libretexts.index import rewrite_index
 from mindtouch2zim.ui import (
@@ -250,6 +251,9 @@ class Processor:
         )
         self.libretexts_index_template = self.jinja2_env.get_template(
             "libretexts.index.html"
+        )
+        self.libretexts_detailed_licensing_template = self.jinja2_env.get_template(
+            "libretexts.detailed-licensing.html"
         )
 
         # Start creator early to detect problems early.
@@ -542,6 +546,20 @@ class Processor:
                         jinja2_template=self.libretexts_glossary_template,
                         original_content=page_content.html_body,
                     )
+                elif (
+                    "https://cdn.libretexts.net/github/LibreTextsMain/DynamicLicensing/dist/dynamicLicensing.min.js"
+                    in page_content.html_body
+                ):
+                    logger.debug(
+                        f"Rewriting {context.current_thread_workitem} as libretexts.org"
+                        " detailed licensing"
+                    )
+                    rewriten = rewrite_detailed_licensing(
+                        rewriter=rewriter,
+                        jinja2_template=self.libretexts_detailed_licensing_template,
+                        mindtouch_client=self.mindtouch_client,
+                        page=page,
+                    )
             except Exception as exc:
                 # code has been tested to work "in-general", but many edge-case occurs
                 # and since these pages are absolutely not essential, we just display a
@@ -550,7 +568,6 @@ class Processor:
                     f"Problem processing special {context.current_thread_workitem}"
                     f", page is probably empty, storing empty page: {exc}"
                 )
-                return ""
         if not rewriten:
             # Default rewriting for 'normal' pages
             rewriten = rewriter.rewrite(page_content.html_body).content
