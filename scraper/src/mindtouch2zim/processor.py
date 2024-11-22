@@ -175,7 +175,10 @@ class Processor:
             bad_assets_threshold=bad_assets_threshold,
         )
         self.asset_executor = Parallel(
-            n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
+            n_jobs=assets_workers,
+            return_as="generator_unordered",
+            backend="threading",
+            timeout=600,  # fallback timeout of 10 minutes, should something go wrong
         )
         mindtouch2zim.constants.CONTACT_INFO = contact_info
         logger.debug(f"User-Agent: { get_user_agent()}")
