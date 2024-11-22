@@ -197,13 +197,13 @@ class Processor:
             self._report_progress
         )
 
-        formatted_config = self.zim_config.format(
+        self.formatted_config = self.zim_config.format(
             {
                 "name": self.zim_config.name,
                 "period": datetime.date.today().strftime("%Y-%m"),
             }
         )
-        zim_file_name = f"{formatted_config.file_name}.zim"
+        zim_file_name = f"{self.formatted_config.file_name}.zim"
         zim_path = self.output_folder / zim_file_name
 
         if zim_path.exists():
@@ -220,23 +220,23 @@ class Processor:
         creator = Creator(zim_path, "index.html")
 
         logger.info("  Fetching and storing home page...")
-        home = self.mindtouch_client.get_home()
+        self.home = self.mindtouch_client.get_home()
 
         logger.info("  Fetching ZIM illustration...")
-        zim_illustration = self._fetch_zim_illustration(home)
+        zim_illustration = self._fetch_zim_illustration(self.home)
 
         logger.debug("Configuring metadata")
         creator.config_metadata(
-            Name=formatted_config.name,
-            Title=formatted_config.title,
-            Publisher=formatted_config.publisher,
+            Name=self.formatted_config.name,
+            Title=self.formatted_config.title,
+            Publisher=self.formatted_config.publisher,
             Date=datetime.datetime.now(tz=datetime.UTC).date(),
-            Creator=formatted_config.creator,
-            Description=formatted_config.description,
-            LongDescription=formatted_config.long_description,
+            Creator=self.formatted_config.creator,
+            Description=self.formatted_config.description,
+            LongDescription=self.formatted_config.long_description,
             # As of 2024-09-4 all documentation is in English.
             Language=LANGUAGE_ISO_639_3,
-            Tags=formatted_config.tags,
+            Tags=self.formatted_config.tags,
             Scraper=f"{NAME} v{VERSION}",
             Illustration_48x48_at_1=zim_illustration.getvalue(),
         )
@@ -255,177 +255,24 @@ class Processor:
 
         # Start creator early to detect problems early.
         with creator as creator:
-
-            creator.add_item_for(
-                "favicon.ico",
-                content=self._fetch_favicon_from_illustration(
-                    zim_illustration
-                ).getvalue(),
-            )
-            del zim_illustration
-
-            logger.info("  Storing configuration...")
-            creator.add_item_for(
-                "content/config.json",
-                content=ConfigModel(
-                    secondary_color=self.zim_config.secondary_color
-                ).model_dump_json(by_alias=True),
-            )
-
-            count_zimui_files = len(list(self.zimui_dist.rglob("*")))
-            logger.info(
-                f"Adding {count_zimui_files} Vue.JS UI files in {self.zimui_dist}"
-            )
-            self.stats_items_total += count_zimui_files
-            for file in self.zimui_dist.rglob("*"):
-                self.stats_items_done += 1
-                run_pending()
-                if file.is_dir():
-                    continue
-                path = str(Path(file).relative_to(self.zimui_dist))
-                logger.debug(f"Adding {path} to ZIM")
-                if path == "index.html":  # Change index.html title and add to ZIM
-                    index_html_path = self.zimui_dist / path
-                    creator.add_item_for(
-                        path=path,
-                        content=index_html_path.read_text(encoding="utf-8").replace(
-                            "<title>Vite App</title>",
-                            f"<title>{formatted_config.title}</title>",
-                        ),
-                        mimetype="text/html",
-                        is_front=True,
-                    )
-                else:
-                    creator.add_item_for(
-                        path=path,
-                        fpath=file,
-                        is_front=False,
-                    )
-
-            mathjax = (Path(__file__) / "../mathjax").resolve()
-            count_mathjax_files = len(list(mathjax.rglob("*")))
-            self.stats_items_total += count_mathjax_files
-            logger.info(f"Adding {count_mathjax_files} MathJax files in {mathjax}")
-            for file in mathjax.rglob("*"):
-                self.stats_items_done += 1
-                run_pending()
-                if not file.is_file():
-                    continue
-                path = str(Path(file).relative_to(mathjax.parent))
-                logger.debug(f"Adding {path} to ZIM")
-                creator.add_item_for(
-                    path=path,
-                    fpath=file,
-                    is_front=False,
-                )
-
-            welcome_image = BytesIO()
-            stream_file(
-                home.welcome_image_url, byte_stream=welcome_image, session=web_session
-            )
-            creator.add_item_for("content/logo.png", content=welcome_image.getvalue())
-            del welcome_image
-
-            self.items_to_download: dict[ZimPath, AssetDetails] = {}
-            self._process_css(
-                css_location=home.screen_css_url,
-                target_filename="screen.css",
-                creator=creator,
-            )
-            self._process_css(
-                css_location=home.print_css_url,
-                target_filename="print.css",
-                creator=creator,
-            )
-            self._process_css(
-                css_location=home.home_url,
-                css_content="\n".join(home.inline_css),
-                target_filename="inline.css",
-                creator=creator,
-            )
-
-            logger.info("Fetching pages tree")
-            pages_tree = self.mindtouch_client.get_page_tree()
-            selected_pages = self.content_filter.filter(pages_tree)
-            logger.info(
-                f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "
-                "fetched and pushed to the ZIM"
-            )
-            creator.add_item_for(
-                "content/shared.json",
-                content=SharedModel(
-                    logo_path="content/logo.png",
-                    root_page_path=selected_pages[0].path,  # root is always first
-                    pages=[
-                        PageModel(id=page.id, title=page.title, path=page.path)
-                        for page in selected_pages
-                    ],
-                ).model_dump_json(by_alias=True),
-            )
-
-            logger.info("Fetching pages content")
-            # compute the list of existing pages to properly rewrite links leading
-            # in-ZIM / out-of-ZIM
-            self.stats_items_total += len(selected_pages)
-            existing_html_pages = {
-                ArticleUrlRewriter.normalize(
-                    HttpUrl(f"{self.mindtouch_client.library_url}/{page.path}")
-                )
-                for page in selected_pages
-            }
-            private_pages: list[LibraryPage] = []
-            for page in selected_pages:
-                self.stats_items_done += 1
-                run_pending()
-                try:
-                    if page.parent and page.parent in private_pages:
-                        logger.debug(f"Ignoring page {page.id} (private page child)")
-                        private_pages.append(page)
-                        continue
-                    self._process_page(
-                        creator=creator,
-                        page=page,
-                        existing_zim_paths=existing_html_pages,
-                    )
-                except HTTPError as exc:
-                    if exc.response.status_code == HTTPStatus.FORBIDDEN:
-                        if page == selected_pages[0]:
-                            raise Exception(
-                                "Root page is private, we cannot ZIM it, stopping"
-                            ) from None
-                        logger.debug(f"Ignoring page {page.id} (private page)")
-                        private_pages.append(page)
-                        continue
-            logger.info(f"{len(private_pages)} private pages have been ignored")
-            if len(private_pages) == len(selected_pages):
-                # we should never get here since we already check fail early if root
-                # page is private, but we are better safe than sorry
-                raise Exception(
-                    "All pages have been ignored, not creating an empty ZIM"
-                )
-            del private_pages
-
-            logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
-            self.stats_items_total += len(self.items_to_download)
-
             try:
-                res = self.asset_executor(
-                    delayed(self.asset_processor.process_asset)(
-                        asset_path, asset_details, creator
-                    )
-                    for asset_path, asset_details in self.items_to_download.items()
+                creator.add_item_for(
+                    "favicon.ico",
+                    content=self._fetch_favicon_from_illustration(
+                        zim_illustration
+                    ).getvalue(),
                 )
-                for _ in res:
-                    self.stats_items_done += 1
-                    run_pending()
-            except Exception as exc:
-                logger.error(
-                    "Exception occured during assets processing, aborting ZIM creation",
-                    exc_info=exc,
-                )
-                creator.can_finish = False
+                del zim_illustration
 
-        logger.info(f"ZIM creation completed, ZIM is at {zim_path}")
+                self.run_with_creator(creator)
+            except Exception:
+                creator.can_finish = False
+                raise
+
+        if creator.can_finish:
+            logger.info(f"ZIM creation completed, ZIM is at {zim_path}")
+        else:
+            logger.error("ZIM creation failed")
 
         # same reason than self.stats_items_done = 1 at the beginning, we need to add
         # a final item to complete the progress
@@ -433,6 +280,164 @@ class Processor:
         self._report_progress()
 
         return zim_path
+
+    def run_with_creator(self, creator: Creator):
+
+        logger.info("  Storing configuration...")
+        creator.add_item_for(
+            "content/config.json",
+            content=ConfigModel(
+                secondary_color=self.zim_config.secondary_color
+            ).model_dump_json(by_alias=True),
+        )
+
+        count_zimui_files = len(list(self.zimui_dist.rglob("*")))
+        logger.info(f"Adding {count_zimui_files} Vue.JS UI files in {self.zimui_dist}")
+        self.stats_items_total += count_zimui_files
+        for file in self.zimui_dist.rglob("*"):
+            self.stats_items_done += 1
+            run_pending()
+            if file.is_dir():
+                continue
+            path = str(Path(file).relative_to(self.zimui_dist))
+            logger.debug(f"Adding {path} to ZIM")
+            if path == "index.html":  # Change index.html title and add to ZIM
+                index_html_path = self.zimui_dist / path
+                creator.add_item_for(
+                    path=path,
+                    content=index_html_path.read_text(encoding="utf-8").replace(
+                        "<title>Vite App</title>",
+                        f"<title>{self.formatted_config.title}</title>",
+                    ),
+                    mimetype="text/html",
+                    is_front=True,
+                )
+            else:
+                creator.add_item_for(
+                    path=path,
+                    fpath=file,
+                    is_front=False,
+                )
+
+        mathjax = (Path(__file__) / "../mathjax").resolve()
+        count_mathjax_files = len(list(mathjax.rglob("*")))
+        self.stats_items_total += count_mathjax_files
+        logger.info(f"Adding {count_mathjax_files} MathJax files in {mathjax}")
+        for file in mathjax.rglob("*"):
+            self.stats_items_done += 1
+            run_pending()
+            if not file.is_file():
+                continue
+            path = str(Path(file).relative_to(mathjax.parent))
+            logger.debug(f"Adding {path} to ZIM")
+            creator.add_item_for(
+                path=path,
+                fpath=file,
+                is_front=False,
+            )
+
+        welcome_image = BytesIO()
+        stream_file(
+            self.home.welcome_image_url, byte_stream=welcome_image, session=web_session
+        )
+        creator.add_item_for("content/logo.png", content=welcome_image.getvalue())
+        del welcome_image
+
+        self.items_to_download: dict[ZimPath, AssetDetails] = {}
+        self._process_css(
+            css_location=self.home.screen_css_url,
+            target_filename="screen.css",
+            creator=creator,
+        )
+        self._process_css(
+            css_location=self.home.print_css_url,
+            target_filename="print.css",
+            creator=creator,
+        )
+        self._process_css(
+            css_location=self.home.home_url,
+            css_content="\n".join(self.home.inline_css),
+            target_filename="inline.css",
+            creator=creator,
+        )
+
+        logger.info("Fetching pages tree")
+        pages_tree = self.mindtouch_client.get_page_tree()
+        selected_pages = self.content_filter.filter(pages_tree)
+        logger.info(
+            f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "
+            "fetched and pushed to the ZIM"
+        )
+        creator.add_item_for(
+            "content/shared.json",
+            content=SharedModel(
+                logo_path="content/logo.png",
+                root_page_path=selected_pages[0].path,  # root is always first
+                pages=[
+                    PageModel(id=page.id, title=page.title, path=page.path)
+                    for page in selected_pages
+                ],
+            ).model_dump_json(by_alias=True),
+        )
+
+        logger.info("Fetching pages content")
+        # compute the list of existing pages to properly rewrite links leading
+        # in-ZIM / out-of-ZIM
+        self.stats_items_total += len(selected_pages)
+        existing_html_pages = {
+            ArticleUrlRewriter.normalize(
+                HttpUrl(f"{self.mindtouch_client.library_url}/{page.path}")
+            )
+            for page in selected_pages
+        }
+        private_pages: list[LibraryPage] = []
+        for page in selected_pages:
+            self.stats_items_done += 1
+            run_pending()
+            try:
+                if page.parent and page.parent in private_pages:
+                    logger.debug(f"Ignoring page {page.id} (private page child)")
+                    private_pages.append(page)
+                    continue
+                self._process_page(
+                    creator=creator,
+                    page=page,
+                    existing_zim_paths=existing_html_pages,
+                )
+            except HTTPError as exc:
+                if exc.response.status_code == HTTPStatus.FORBIDDEN:
+                    if page == selected_pages[0]:
+                        raise Exception(
+                            "Root page is private, we cannot ZIM it, stopping"
+                        ) from None
+                    logger.debug(f"Ignoring page {page.id} (private page)")
+                    private_pages.append(page)
+                    continue
+        logger.info(f"{len(private_pages)} private pages have been ignored")
+        if len(private_pages) == len(selected_pages):
+            # we should never get here since we already check fail early if root
+            # page is private, but we are better safe than sorry
+            raise Exception("All pages have been ignored, not creating an empty ZIM")
+        del private_pages
+
+        logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
+        self.stats_items_total += len(self.items_to_download)
+
+        res = self.asset_executor(
+            delayed(self.asset_processor.process_asset)(
+                asset_path, asset_details, creator
+            )
+            for asset_path, asset_details in self.items_to_download.items()
+        )
+        for _ in res:
+            self.stats_items_done += 1
+            run_pending()
+
+        if self.asset_processor.bad_assets_count:
+            logger.warning(
+                f"{self.asset_processor.bad_assets_count} bad assets have been "
+                "ignored"
+            )
 
     def _process_css(
         self,
