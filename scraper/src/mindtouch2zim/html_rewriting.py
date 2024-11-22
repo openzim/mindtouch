@@ -99,9 +99,15 @@ def rewrite_iframe_tags(
             url_rewriter.add_item_to_download(rewrite_result)
             image_rewriten_url = rewrite_result.rewriten_url
         else:
-            logger.debug(f"iframe pointing to {src} will not have any preview")
+            logger.debug(
+                f"iframe pointing to {src} in {rewriting_context} will not "
+                "have any preview"
+            )
     except Exception as exc:
-        logger.warning(f"Failed to rewrite iframe with src {src}", exc_info=exc)
+        logger.warning(
+            f"Failed to rewrite iframe with src {src} in  {rewriting_context}",
+            exc_info=exc,
+        )
 
     if image_rewriten_url:
         return (
