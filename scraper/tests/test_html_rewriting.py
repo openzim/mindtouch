@@ -170,6 +170,18 @@ def test_html_img_rewriting(
             {},
             id="unhandled",
         ),
+        pytest.param(
+            '<iframe src="" srcdoc="Foo Bar"></iframe>',
+            '<iframe src="" srcdoc="Foo Bar"></iframe>',
+            {},
+            id="empty_src",
+        ),
+        pytest.param(
+            '<iframe srcdoc="Foo Bar"></iframe>',
+            '<iframe srcdoc="Foo Bar"></iframe>',
+            {},
+            id="missing_src",
+        ),
     ],
 )
 def test_html_iframe_rewriting(

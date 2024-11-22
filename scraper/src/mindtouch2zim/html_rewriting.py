@@ -101,15 +101,8 @@ def rewrite_iframe_tags(
         raise Exception("Expecting HtmlUrlsRewriter")
     src = get_attr_value_from(attrs=attrs, name="src")
     if not src:
-        msg = (
-            "Unsupported empty src in iframe, found while rewriting "
-            f"{rewriting_context}"
-        )
-        if not mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY:
-            raise UnsupportedTagError(msg)
-        else:
-            logger.warning(msg)
-            return
+        logger.warning(f"Empty src found in iframe while rewriting {rewriting_context}")
+        return
     image_rewriten_url = None
     try:
         if ytb_match := YOUTUBE_IFRAME_RE.match(src):
