@@ -143,6 +143,8 @@ class Processor:
         stats_file: Path | None,
         illustration_url: str | None,
         s3_url_with_credentials: str | None,
+        bad_assets_regex: str | None,
+        bad_assets_threshold: int,
         assets_workers: int,
         *,
         overwrite_existing_zim: bool,
@@ -167,7 +169,9 @@ class Processor:
         self.overwrite_existing_zim = overwrite_existing_zim
         self.illustration_url = illustration_url
         self.asset_processor = AssetProcessor(
-            s3_url_with_credentials=s3_url_with_credentials
+            s3_url_with_credentials=s3_url_with_credentials,
+            bad_assets_regex=bad_assets_regex,
+            bad_assets_threshold=bad_assets_threshold,
         )
         self.asset_executor = Parallel(
             n_jobs=assets_workers, return_as="generator_unordered", backend="threading"

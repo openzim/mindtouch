@@ -225,6 +225,23 @@ def main(tmpdir: str) -> None:
         dest="assets_workers",
     )
 
+    parser.add_argument(
+        "--bad-assets-regex",
+        help="Regular expression of asset URLs known to not be available. "
+        "Case insensitive.",
+        dest="bad_assets_regex",
+    )
+
+    parser.add_argument(
+        "--bad-assets-threshold",
+        type=int,
+        help="[dev] Number of assets allowed to fail to download before failing the"
+        " scraper. Assets already excluded with --bad-assets-regex are not counted for"
+        " this threshold. Defaults to 10 assets.",
+        default=10,
+        dest="bad_assets_threshold",
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -262,6 +279,8 @@ def main(tmpdir: str) -> None:
             illustration_url=args.illustration_url,
             s3_url_with_credentials=args.s3_url_with_credentials,
             assets_workers=args.assets_workers,
+            bad_assets_regex=args.bad_assets_regex,
+            bad_assets_threshold=args.bad_assets_threshold,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")
