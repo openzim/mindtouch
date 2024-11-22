@@ -514,18 +514,28 @@ class Processor:
             # 3A_An_Introduction_to_Geology_(Johnson_Affolter_Inkenbrandt_and_Mosher)/zz
             # %3A_Back_Matter/20%3A_Glossary
             # same kind of pattern works for glossary, index, ... pages
-            if re.match(r"^.*\/zz:_[^\/]*?\/10:_[^\/]*$", page.path):
-                rewriten = rewrite_index(
-                    rewriter=rewriter,
-                    jinja2_template=self.libretexts_index_template,
-                    mindtouch_client=self.mindtouch_client,
-                    page=page,
+            try:
+                if re.match(r"^.*\/zz:_[^\/]*?\/10:_[^\/]*$", page.path):
+                    rewriten = rewrite_index(
+                        rewriter=rewriter,
+                        jinja2_template=self.libretexts_index_template,
+                        mindtouch_client=self.mindtouch_client,
+                        page=page,
+                    )
+                elif re.match(r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path):
+                    rewriten = rewrite_glossary(
+                        jinja2_template=self.libretexts_glossary_template,
+                        original_content=page_content.html_body,
+                    )
+            except Exception as exc:
+                # code has been tested to work "in-general", but many edge-case occurs
+                # and since these pages are absolutely not essential, we just display a
+                # warning and store an empty page
+                logger.warning(
+                    f"Problem processing special page ID {page.id} ({page.encoded_url})"
+                    f", page is probably empty, storing empty page: {exc}"
                 )
-            elif re.match(r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path):
-                rewriten = rewrite_glossary(
-                    jinja2_template=self.libretexts_glossary_template,
-                    original_content=page_content.html_body,
-                )
+                return ""
         if not rewriten:
             # Default rewriting for 'normal' pages
             rewriten = rewriter.rewrite(page_content.html_body).content
