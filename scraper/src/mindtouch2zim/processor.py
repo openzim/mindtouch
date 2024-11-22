@@ -146,7 +146,6 @@ class Processor:
         assets_workers: int,
         *,
         overwrite_existing_zim: bool,
-        html_issues_warn_only: bool,
     ) -> None:
         """Initializes Processor.
 
@@ -173,8 +172,6 @@ class Processor:
         self.asset_executor = Parallel(
             n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
         )
-
-        mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY = html_issues_warn_only
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning

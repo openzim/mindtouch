@@ -13,10 +13,8 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 
-import mindtouch2zim.constants
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.constants import logger
-from mindtouch2zim.errors import UnsupportedHrefSrcError, UnsupportedTagError
 from mindtouch2zim.utils import is_better_srcset_descriptor
 from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 
@@ -29,7 +27,7 @@ rewriting_context = None
 
 
 @html_rules.rewrite_attribute()
-def rewrite_href_src_attributes(
+def rewrite_href_src_srcset_attributes(
     tag: str,
     attr_name: str,
     attr_value: str | None,
@@ -37,12 +35,12 @@ def rewrite_href_src_attributes(
     base_href: str | None,
 ):
     """Rewrite href and src attributes"""
-    if attr_name not in ("href", "src") or not attr_value:
+    if attr_name not in ("href", "src", "srcset") or not attr_value:
         return
     if not isinstance(url_rewriter, HtmlUrlsRewriter):
         raise Exception("Expecting HtmlUrlsRewriter")
     new_attr_value = None
-    if tag == "a":
+    if tag in ["a", "area"]:
         rewrite_result = url_rewriter(
             attr_value, base_href=base_href, rewrite_all_url=False
         )
@@ -53,34 +51,15 @@ def rewrite_href_src_attributes(
             if rewrite_result.rewriten_url.startswith(url_rewriter.library_path.value)
             else rewrite_result.rewriten_url
         )
-    if not new_attr_value:
-        # we do not (yet) support other tags / attributes so we fail the scraper
-        msg = (
+    else:
+        # we remove the src/href/srcset which is not supported, to ensure we won't load
+        # external assets
+        new_attr_value = ""
+        logger.warning(
             f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
             f"'{attr_value}') while rewriting {rewriting_context}"
         )
-        if not mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY:
-            raise UnsupportedHrefSrcError(msg)
-        else:
-            logger.warning(msg)
-            return
     return (attr_name, new_attr_value)
-
-
-@html_rules.rewrite_tag()
-def refuse_unsupported_tags(tag: str):
-    """Stop scraper if unsupported tag is encountered"""
-    if tag not in ["picture"]:
-        return
-    msg = (
-        f"Tag {tag} is not yet supported in this scraper, found while rewriting "
-        f"{rewriting_context}"
-    )
-    if not mindtouch2zim.constants.HTML_ISSUES_WARN_ONLY:
-        raise UnsupportedTagError(msg)
-    else:
-        logger.warning(msg)
-        return
 
 
 YOUTUBE_IFRAME_RE = re.compile(r".*youtube(?:-\w+)*\.\w+\/embed\/(?P<id>.*?)(?:\?.*)*$")
