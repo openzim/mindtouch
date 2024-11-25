@@ -245,20 +245,22 @@ class AssetProcessor:
     ) -> BytesIO:
         """Download of a given asset, optimize if needed, or download from S3 cache"""
 
-        if not always_fetch_online:
-            header_data = self._get_header_data_for(asset_url)
-            if header_data.content_type:
-                mime_type = header_data.content_type.split(";")[0].strip()
-                if mime_type in SUPPORTED_IMAGE_MIME_TYPES:
-                    return self._get_image_content(
-                        asset_path=asset_path,
-                        asset_url=asset_url,
-                        header_data=header_data,
-                    )
-                else:
-                    logger.debug(f"Not optimizing, unsupported mime type: {mime_type}")
-
         try:
+            if not always_fetch_online:
+                header_data = self._get_header_data_for(asset_url)
+                if header_data.content_type:
+                    mime_type = header_data.content_type.split(";")[0].strip()
+                    if mime_type in SUPPORTED_IMAGE_MIME_TYPES:
+                        return self._get_image_content(
+                            asset_path=asset_path,
+                            asset_url=asset_url,
+                            header_data=header_data,
+                        )
+                    else:
+                        logger.debug(
+                            f"Not optimizing, unsupported mime type: {mime_type}"
+                        )
+
             return self._download_from_online(asset_url=asset_url)
         except RequestException as exc:
             # check if the failing download match known bad assets regex early, and if
