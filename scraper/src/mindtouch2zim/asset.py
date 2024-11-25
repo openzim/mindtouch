@@ -1,3 +1,5 @@
+import re
+import threading
 from io import BytesIO
 from typing import NamedTuple
 
@@ -5,7 +7,6 @@ import backoff
 from kiwixstorage import KiwixStorage, NotFoundError
 from pif import get_public_ip
 from PIL import Image
-from requests import HTTPError
 from requests.exceptions import RequestException
 from zimscraperlib.download import stream_file
 from zimscraperlib.image.optimization import optimize_webp
@@ -13,7 +14,8 @@ from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
-from mindtouch2zim.constants import logger, web_session
+from mindtouch2zim.constants import KNOWN_BAD_ASSETS_REGEX, logger, web_session
+from mindtouch2zim.errors import KnownBadAssetFailedError
 from mindtouch2zim.utils import backoff_hdlr
 
 SUPPORTED_IMAGE_MIME_TYPES = {
@@ -47,9 +49,22 @@ class AssetDetails(NamedTuple):
 
 class AssetProcessor:
 
-    def __init__(self, s3_url_with_credentials: str | None) -> None:
+    def __init__(
+        self,
+        s3_url_with_credentials: str | None,
+        bad_assets_regex: str | None,
+        bad_assets_threshold: int,
+    ) -> None:
         self.s3_url_with_credentials = s3_url_with_credentials
+
+        bad_assets_regex = f"{bad_assets_regex}|{KNOWN_BAD_ASSETS_REGEX}"
+        self.bad_assets_regex = (
+            re.compile(bad_assets_regex, re.IGNORECASE) if bad_assets_regex else None
+        )
+        self.bad_assets_threshold = bad_assets_threshold
         self._setup_s3()
+        self.bad_assets_count = 0
+        self.lock = threading.Lock()
 
     def process_asset(
         self,
@@ -62,12 +77,6 @@ class AssetProcessor:
             asset_path=asset_path, asset_details=asset_details, creator=creator
         )
 
-    @backoff.on_exception(
-        backoff.expo,
-        RequestException,
-        max_time=16,
-        on_backoff=backoff_hdlr,
-    )
     def _process_asset_internal(
         self,
         asset_path: ZimPath,
@@ -89,11 +98,28 @@ class AssetProcessor:
                     content=asset_content.getvalue(),
                 )
                 break  # file found and added
-            except HTTPError as exc:
-                # would make more sense to be a warning, but this is just too
-                # verbose, at least on geo.libretexts.org many assets are just
-                # missing
-                logger.debug(f"Ignoring {asset_path.value} due to {exc}")
+            except KnownBadAssetFailedError as exc:
+                logger.debug(f"Ignoring known bad asset for {asset_url.value}: {exc}")
+            except RequestException as exc:
+                with self.lock:
+                    self.bad_assets_count += 1
+                    if (
+                        self.bad_assets_threshold >= 0
+                        and self.bad_assets_count > self.bad_assets_threshold
+                    ):
+                        logger.error(
+                            f"Exception while processing asset for {asset_url.value}: "
+                            f"{exc}"
+                        )
+                        raise Exception(  # noqa: B904
+                            f"Asset failure threshold ({self.bad_assets_threshold}) "
+                            "reached, stopping execution"
+                        )
+                    else:
+                        logger.warning(
+                            f"Exception while processing asset for {asset_url.value}: "
+                            f"{exc}"
+                        )
 
     def _get_header_data_for(self, url: HttpUrl) -> HeaderData:
         """Get details from headers for a given url
@@ -204,6 +230,12 @@ class AssetProcessor:
         )
         return asset_content
 
+    @backoff.on_exception(
+        backoff.expo,
+        RequestException,
+        max_time=30,  # secs
+        on_backoff=backoff_hdlr,
+    )
     def get_asset_content(
         self, asset_path: ZimPath, asset_url: HttpUrl, *, always_fetch_online: bool
     ) -> BytesIO:
@@ -222,7 +254,16 @@ class AssetProcessor:
                 else:
                     logger.debug(f"Not optimizing, unsupported mime type: {mime_type}")
 
-        return self._download_from_online(asset_url=asset_url)
+        try:
+            return self._download_from_online(asset_url=asset_url)
+        except RequestException as exc:
+            # check if the failing download match known bad assets regex early, and if
+            # so raise a custom exception to escape backoff (always important to try
+            # once even if asset is expected to not work, but no need to loose time on
+            # retrying assets which are expected to be bad)
+            if self.bad_assets_regex and self.bad_assets_regex.findall(asset_url.value):
+                raise KnownBadAssetFailedError() from exc
+            raise
 
     def _setup_s3(self):
         if not self.s3_url_with_credentials:

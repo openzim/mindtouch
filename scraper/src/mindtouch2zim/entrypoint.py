@@ -226,13 +226,20 @@ def main(tmpdir: str) -> None:
     )
 
     parser.add_argument(
-        "--html-issues-warn-only",
-        help="[dev] Only log a warning when unexpected HTML is encountered. Use with "
-        "caution because activating this option means that ZIM HTML will probably lead "
-        "to online resources without user noticing it.",
-        action="store_true",
-        default=False,
-        dest="html_issues_warn_only",
+        "--bad-assets-regex",
+        help="Regular expression of asset URLs known to not be available. "
+        "Case insensitive.",
+        dest="bad_assets_regex",
+    )
+
+    parser.add_argument(
+        "--bad-assets-threshold",
+        type=int,
+        help="[dev] Number of assets allowed to fail to download before failing the"
+        " scraper. Assets already excluded with --bad-assets-regex are not counted for"
+        " this threshold. Defaults to 10 assets.",
+        default=10,
+        dest="bad_assets_threshold",
     )
 
     args = parser.parse_args()
@@ -272,7 +279,8 @@ def main(tmpdir: str) -> None:
             illustration_url=args.illustration_url,
             s3_url_with_credentials=args.s3_url_with_credentials,
             assets_workers=args.assets_workers,
-            html_issues_warn_only=args.html_issues_warn_only,
+            bad_assets_regex=args.bad_assets_regex,
+            bad_assets_threshold=args.bad_assets_threshold,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

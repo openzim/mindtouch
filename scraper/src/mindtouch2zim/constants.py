@@ -16,7 +16,8 @@ LANGUAGE_ISO_639_3 = "eng"
 HTTP_TIMEOUT_NORMAL_SECONDS = 15
 HTTP_TIMEOUT_LONG_SECONDS = 30
 
-HTML_ISSUES_WARN_ONLY = False
+# Loading the CSS leads to many bad assets at these URLs, we just ignore them
+KNOWN_BAD_ASSETS_REGEX = r"https?:\/\/a\.mtstatic\.com/@(cache|style)"
 
 logger = getLogger(NAME, level=logging.DEBUG, log_format=DEFAULT_FORMAT_WITH_THREADS)
 

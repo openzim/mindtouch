@@ -6,7 +6,6 @@ from zimscraperlib.rewriting.url_rewriting import (
 )
 
 from mindtouch2zim.client import LibraryPage
-from mindtouch2zim.errors import UnsupportedHrefSrcError, UnsupportedTagError
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
 
 
@@ -170,6 +169,18 @@ def test_html_img_rewriting(
             {},
             id="unhandled",
         ),
+        pytest.param(
+            '<iframe src="" srcdoc="Foo Bar"></iframe>',
+            '<iframe src="" srcdoc="Foo Bar"></iframe>',
+            {},
+            id="empty_src",
+        ),
+        pytest.param(
+            '<iframe srcdoc="Foo Bar"></iframe>',
+            '<iframe srcdoc="Foo Bar"></iframe>',
+            {},
+            id="missing_src",
+        ),
     ],
 )
 def test_html_iframe_rewriting(
@@ -185,14 +196,55 @@ def test_html_iframe_rewriting(
     assert url_rewriter.items_to_download == expected_items_to_download
 
 
-def test_html_picture_rewriting(html_rewriter: HtmlRewriter):
-    with pytest.raises(UnsupportedTagError):
-        html_rewriter.rewrite("<picture>")
-
-
-def test_html_script_rewriting(html_rewriter: HtmlRewriter):
-    with pytest.raises(UnsupportedHrefSrcError):
-        html_rewriter.rewrite("<script src='script.js'>")
+@pytest.mark.parametrize(
+    "source_html, expected_html",
+    [
+        pytest.param("<script src='script.js'>", '<script src="">', id="script_src"),
+        pytest.param(
+            """<video class="mt-media" controls="controls" preload="auto">
+  <source
+    src="https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4"
+    type="video/mp4"
+  />
+  <embed
+    class="mt-media"
+    src="https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4"
+    autoplay="False"
+    autostart="False"
+    scale="tofit"
+    wmode="opaque"
+    allowfullscreen="true"
+  />
+</video>""",
+            """<video class="mt-media" controls="controls" preload="auto">
+  <source src="" type="video/mp4" />
+  <embed class="mt-media" src="" autoplay="False" autostart="False" scale="tofit" """
+            """wmode="opaque" allowfullscreen="true" />
+</video>""",
+            id="video_src",
+        ),
+        pytest.param(
+            """<picture>
+  <source srcset="/media/cc0-images/surfer-240-200.jpg" media="(orientation: xxx)" />
+  <img src="/media/cc0-images/painted-hand-298-332.jpg" alt="" />
+</picture>""",
+            """<picture>
+  <source srcset="" media="(orientation: xxx)" />
+  <img alt="" src="content/www.acme.com/media/cc0-images/painted-hand-298-332.jpg"/>
+</picture>""",
+            id="picture_srcset",
+        ),
+        pytest.param(
+            '<link href="/media/examples/link-element-example.css" rel="stylesheet" />',
+            '<link href="" rel="stylesheet" />',
+            id="link_href",
+        ),
+    ],
+)
+def test_html_unknown_src_href_rewriting(
+    html_rewriter: HtmlRewriter, source_html: str, expected_html: str
+):
+    assert html_rewriter.rewrite(source_html).content == expected_html
 
 
 @pytest.mark.parametrize(

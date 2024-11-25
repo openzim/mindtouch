@@ -59,7 +59,7 @@ def is_better_srcset_descriptor(
 
 def backoff_hdlr(details: Any):
     """Default backoff handler to log something when backoff occurs"""
-    logger.warning(
+    logger.debug(
         "Request error, starting backoff of {wait:0.1f} seconds after {tries} "
         "tries".format(**details)
     )
