@@ -3,9 +3,6 @@ import re
 from pathlib import Path
 
 import pytest
-from zimscraperlib.download import (
-    stream_file,  # pyright: ignore[reportUnknownVariableType]
-)
 from zimscraperlib.image.probing import format_for
 
 from mindtouch2zim.client import (
@@ -14,6 +11,7 @@ from mindtouch2zim.client import (
     MindtouchClient,
     MindtouchHome,
 )
+from mindtouch2zim.download import stream_file
 
 
 @pytest.fixture(scope="module")

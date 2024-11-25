@@ -242,6 +242,12 @@ def main(tmpdir: str) -> None:
         dest="bad_assets_threshold",
     )
 
+    parser.add_argument(
+        "--contact-info",
+        help="Contact information to pass in User-Agent headers",
+        default=os.getenv("MINDTOUCH_CONTACT_INFO", "https://www.kiwix.org"),
+    )
+
     args = parser.parse_args()
 
     logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
@@ -281,6 +287,7 @@ def main(tmpdir: str) -> None:
             assets_workers=args.assets_workers,
             bad_assets_regex=args.bad_assets_regex,
             bad_assets_threshold=args.bad_assets_threshold,
+            contact_info=args.contact_info,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

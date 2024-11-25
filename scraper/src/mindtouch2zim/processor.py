@@ -13,7 +13,6 @@ from pydantic import BaseModel
 from requests import RequestException
 from requests.exceptions import HTTPError
 from schedule import every, run_pending
-from zimscraperlib.download import stream_file
 from zimscraperlib.image import convert_image, resize_image
 from zimscraperlib.image.conversion import convert_svg2png
 from zimscraperlib.image.probing import format_for
@@ -47,6 +46,7 @@ from mindtouch2zim.constants import (
     logger,
     web_session,
 )
+from mindtouch2zim.download import get_user_agent, stream_file
 from mindtouch2zim.errors import NoIllustrationFoundError
 from mindtouch2zim.html import get_text
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
@@ -146,6 +146,7 @@ class Processor:
         bad_assets_regex: str | None,
         bad_assets_threshold: int,
         assets_workers: int,
+        contact_info: str,
         *,
         overwrite_existing_zim: bool,
     ) -> None:
@@ -176,6 +177,8 @@ class Processor:
         self.asset_executor = Parallel(
             n_jobs=assets_workers, return_as="generator_unordered", backend="threading"
         )
+        mindtouch2zim.constants.CONTACT_INFO = contact_info
+        logger.debug(f"User-Agent: { get_user_agent()}")
 
         self.stats_items_done = 0
         # we add 1 more items to process so that progress is not 100% at the beginning

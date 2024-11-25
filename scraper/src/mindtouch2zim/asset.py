@@ -8,13 +8,13 @@ from kiwixstorage import KiwixStorage, NotFoundError
 from pif import get_public_ip
 from PIL import Image
 from requests.exceptions import RequestException
-from zimscraperlib.download import stream_file
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import KNOWN_BAD_ASSETS_REGEX, logger, web_session
+from mindtouch2zim.download import stream_file
 from mindtouch2zim.errors import (
     KnownBadAssetFailedError,
     S3CacheError,

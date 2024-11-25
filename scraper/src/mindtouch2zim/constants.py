@@ -22,3 +22,6 @@ KNOWN_BAD_ASSETS_REGEX = r"https?:\/\/a\.mtstatic\.com/@(cache|style)"
 logger = getLogger(NAME, level=logging.DEBUG, log_format=DEFAULT_FORMAT_WITH_THREADS)
 
 web_session = get_session()
+
+# info passed in User-Agent header of web requests
+CONTACT_INFO = "https://www.kiwix.org"
