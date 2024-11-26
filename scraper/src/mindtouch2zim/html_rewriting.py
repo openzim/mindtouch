@@ -15,6 +15,7 @@ from zimscraperlib.rewriting.url_rewriting import (
 
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.constants import logger
+from mindtouch2zim.context import CONTEXT
 from mindtouch2zim.utils import is_better_srcset_descriptor
 from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 
@@ -22,8 +23,6 @@ from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 html_rules.rewrite_attribute_rules.clear()
 html_rules.rewrite_data_rules.clear()
 html_rules.rewrite_tag_rules.clear()
-
-rewriting_context = None
 
 
 @html_rules.rewrite_attribute()
@@ -57,7 +56,7 @@ def rewrite_href_src_srcset_attributes(
         new_attr_value = ""
         logger.warning(
             f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
-            f"'{attr_value}') while rewriting {rewriting_context}"
+            f"'{attr_value}') while {CONTEXT.processing_step}"
         )
     return (attr_name, new_attr_value)
 
@@ -80,7 +79,9 @@ def rewrite_iframe_tags(
         raise TypeError("Expecting instance of HtmlUrlsRewriter")
     src = get_attr_value_from(attrs=attrs, name="src")
     if not src:
-        logger.warning(f"Empty src found in iframe while rewriting {rewriting_context}")
+        logger.warning(
+            f"Empty src found in iframe while rewriting {CONTEXT.processing_step}"
+        )
         return
     image_rewriten_url = None
     try:
@@ -100,12 +101,12 @@ def rewrite_iframe_tags(
             image_rewriten_url = rewrite_result.rewriten_url
         else:
             logger.debug(
-                f"iframe pointing to {src} in {rewriting_context} will not "
+                f"iframe pointing to {src} in {CONTEXT.processing_step} will not "
                 "have any preview"
             )
     except Exception as exc:
         logger.warning(
-            f"Failed to rewrite iframe with src {src} in  {rewriting_context}",
+            f"Failed to rewrite iframe with src {src} in {CONTEXT.processing_step}",
             exc_info=exc,
         )
 

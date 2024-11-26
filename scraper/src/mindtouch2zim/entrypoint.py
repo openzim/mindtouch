@@ -1,7 +1,4 @@
 import argparse
-import logging
-import os
-from pathlib import Path
 
 from zimscraperlib.constants import (
     MAXIMUM_DESCRIPTION_METADATA_LENGTH,
@@ -10,12 +7,12 @@ from zimscraperlib.constants import (
 )
 from zimscraperlib.zim.filesystem import validate_folder_writable
 
-from mindtouch2zim.client import MindtouchClient
 from mindtouch2zim.constants import (
     NAME,
     VERSION,
     logger,
 )
+from mindtouch2zim.context import CONTEXT, init_context_from_args
 from mindtouch2zim.processor import ContentFilter, Processor
 from mindtouch2zim.zimconfig import ZimConfig
 
@@ -162,7 +159,6 @@ def main(tmpdir: str) -> None:
         "--overwrite",
         help="Do not fail if ZIM already exists, overwrite it",
         action="store_true",
-        default=False,
     )
 
     # ZIM configuration flags
@@ -174,20 +170,14 @@ def main(tmpdir: str) -> None:
     parser.add_argument(
         "--output",
         help="Output folder for ZIMs. Default: /output",
-        default=os.getenv("MINDTOUCH_OUTPUT", "/output"),
-        dest="output_folder",
     )
 
     parser.add_argument(
         "--tmp",
         help="Temporary folder for cache, intermediate files, ... Default: tmp",
-        default=os.getenv("MINDTOUCH_TMP", tmpdir),
-        dest="tmp_folder",
     )
 
-    parser.add_argument(
-        "--debug", help="Enable verbose output", action="store_true", default=False
-    )
+    parser.add_argument("--debug", help="Enable verbose output", action="store_true")
 
     parser.add_argument(
         "--zimui-dist",
@@ -196,40 +186,33 @@ def main(tmpdir: str) -> None:
             "Dev option to customize directory containing Vite build output from the "
             "ZIM UI Vue.JS application"
         ),
-        default=os.getenv("MINDTOUCH_ZIMUI_DIST", "../zimui/dist"),
     )
 
     parser.add_argument(
         "--stats-filename",
         help="Path to store the progress JSON file to.",
-        dest="stats_filename",
     )
 
     parser.add_argument(
         "--illustration-url",
         help="URL to illustration to use for ZIM illustration and favicon",
-        dest="illustration_url",
     )
 
     parser.add_argument(
         "--optimization-cache",
         help="URL with credentials to S3 for using as optimization cache",
-        dest="s3_url_with_credentials",
     )
 
     parser.add_argument(
         "--assets-workers",
         type=int,
-        help=("Number of parallel workers for asset processing (default: 10)"),
-        default=10,
-        dest="assets_workers",
+        help="Number of parallel workers for asset processing",
     )
 
     parser.add_argument(
         "--bad-assets-regex",
         help="Regular expression of asset URLs known to not be available. "
         "Case insensitive.",
-        dest="bad_assets_regex",
     )
 
     parser.add_argument(
@@ -237,57 +220,39 @@ def main(tmpdir: str) -> None:
         type=int,
         help="[dev] Number of assets allowed to fail to download before failing the"
         " scraper. Assets already excluded with --bad-assets-regex are not counted for"
-        " this threshold. Defaults to 10 assets.",
-        default=10,
-        dest="bad_assets_threshold",
+        " this threshold.",
     )
 
     parser.add_argument(
         "--contact-info",
         help="Contact information to pass in User-Agent headers",
-        default=os.getenv("MINDTOUCH_CONTACT_INFO", "https://www.kiwix.org"),
     )
 
     args = parser.parse_args()
 
-    logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
-
-    output_folder = Path(args.output_folder)
-    output_folder.mkdir(exist_ok=True)
-    validate_folder_writable(output_folder)
-
-    tmp_folder = Path(args.tmp_folder)
-    tmp_folder.mkdir(exist_ok=True)
-    validate_folder_writable(tmp_folder)
-
-    library_url = str(args.library_url).rstrip("/")
-
     try:
+        init_context_from_args(args, tmpdir)
+
         zim_config = ZimConfig.of(args)
-        doc_filter = ContentFilter.of(args)
+        content_filter = ContentFilter.of(args)
 
-        cache_folder = tmp_folder / "cache"
-        cache_folder.mkdir(exist_ok=True)
+        # remove trailing slash which we do not want per convention
+        CONTEXT.library_url = CONTEXT.library_url.rstrip("/")
 
-        mindtouch_client = MindtouchClient(
-            library_url=library_url,
-            cache_folder=cache_folder,
-        )
+        # initialize all paths, ensuring they are ok for operation
+        CONTEXT.output_folder.mkdir(exist_ok=True)
+        validate_folder_writable(CONTEXT.output_folder)
+
+        CONTEXT.tmp_folder.mkdir(exist_ok=True)
+        validate_folder_writable(CONTEXT.tmp_folder)
+
+        CONTEXT.cache_folder = CONTEXT.tmp_folder / "cache"
+        CONTEXT.cache_folder.mkdir(exist_ok=True)
+        validate_folder_writable(CONTEXT.cache_folder)
 
         Processor(
-            mindtouch_client=mindtouch_client,
             zim_config=zim_config,
-            output_folder=Path(args.output_folder),
-            zimui_dist=Path(args.zimui_dist),
-            content_filter=doc_filter,
-            stats_file=Path(args.stats_filename) if args.stats_filename else None,
-            overwrite_existing_zim=args.overwrite,
-            illustration_url=args.illustration_url,
-            s3_url_with_credentials=args.s3_url_with_credentials,
-            assets_workers=args.assets_workers,
-            bad_assets_regex=args.bad_assets_regex,
-            bad_assets_threshold=args.bad_assets_threshold,
-            contact_info=args.contact_info,
+            content_filter=content_filter,
         ).run()
     except SystemExit:
         logger.error("Generation failed, exiting")

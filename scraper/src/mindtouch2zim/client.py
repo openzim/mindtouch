@@ -7,12 +7,8 @@ from bs4 import BeautifulSoup, NavigableString
 from pydantic import BaseModel
 from requests import Response
 
-from mindtouch2zim.constants import (
-    HTTP_TIMEOUT_LONG_SECONDS,
-    HTTP_TIMEOUT_NORMAL_SECONDS,
-    logger,
-    web_session,
-)
+from mindtouch2zim.constants import logger
+from mindtouch2zim.context import CONTEXT
 from mindtouch2zim.errors import APITokenRetrievalError, MindtouchParsingError
 from mindtouch2zim.html import get_soup
 
@@ -99,27 +95,25 @@ class LibraryTree(BaseModel):
 class MindtouchClient:
     """Utility functions to read data from mindtouch instance."""
 
-    def __init__(self, library_url: str, cache_folder: Path) -> None:
+    def __init__(self) -> None:
         """Initializes MindtouchClient.
 
         Paremters:
             library_url: Scheme and hostname for the Libretext library
                 e.g. `https://geo.libretexts.org`.
         """
-        self.library_url = library_url
         self.deki_token = None
-        self.cache_folder = cache_folder
 
     @property
     def api_url(self) -> str:
-        return f"{self.library_url}/@api/deki"
+        return f"{CONTEXT.library_url}/@api/deki"
 
     def _get_cache_file(self, url_subpath_and_query: str) -> Path:
         """Get location where HTTP result should be cached"""
         url_subpath_and_query = re.sub(r"^/", "", url_subpath_and_query)
         if url_subpath_and_query.endswith("/"):
             url_subpath_and_query += "index"
-        return self.cache_folder / url_subpath_and_query
+        return CONTEXT.cache_folder / url_subpath_and_query
 
     def _get_text(self, url_subpath_and_query: str) -> str:
         """Perform a GET request and return the response as decoded text."""
@@ -129,13 +123,13 @@ class MindtouchClient:
             return cache_file.read_text()
         cache_file.parent.mkdir(parents=True, exist_ok=True)
 
-        full_url = f"{self.library_url}{url_subpath_and_query}"
+        full_url = f"{CONTEXT.library_url}{url_subpath_and_query}"
         logger.debug(f"Fetching {full_url}")
 
-        resp = web_session.get(
+        resp = CONTEXT.web_session.get(
             url=full_url,
             allow_redirects=True,
-            timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
+            timeout=CONTEXT.http_timeout_normal_seconds,
         )
         resp.raise_for_status()
 
@@ -145,7 +139,7 @@ class MindtouchClient:
     def _get_api_resp(self, api_sub_path_and_query: str, timeout: float) -> Response:
         api_url = f"{self.api_url}{api_sub_path_and_query}"
         logger.debug(f"Calling API at {api_url}")
-        resp = web_session.get(
+        resp = CONTEXT.web_session.get(
             url=api_url,
             headers={"x-deki-token": self.deki_token},
             timeout=timeout,
@@ -157,7 +151,7 @@ class MindtouchClient:
         self,
         api_sub_path: str,
         query_params: str = "",
-        timeout: float = HTTP_TIMEOUT_NORMAL_SECONDS,
+        timeout: float = CONTEXT.http_timeout_normal_seconds,
     ) -> Any:
         cache_file = self._get_cache_file(f"api_json{api_sub_path}{query_params}.dat")
         if cache_file.exists():
@@ -173,7 +167,7 @@ class MindtouchClient:
         return result
 
     def _get_api_content(
-        self, api_sub_path: str, timeout: float = HTTP_TIMEOUT_NORMAL_SECONDS
+        self, api_sub_path: str, timeout: float = CONTEXT.http_timeout_normal_seconds
     ) -> bytes | Any:
         cache_file = self._get_cache_file(f"api_content{api_sub_path}")
         if cache_file.exists():
@@ -196,7 +190,7 @@ class MindtouchClient:
             screen_css_url=_get_screen_css_url_from_home(soup),
             print_css_url=_get_print_css_url_from_home(soup),
             inline_css=_get_inline_css_from_home(soup),
-            home_url=f"{self.library_url}/",
+            home_url=f"{CONTEXT.library_url}/",
             icons_urls=_get_icons_urls(soup),
         )
 
@@ -214,7 +208,9 @@ class MindtouchClient:
     def get_all_pages_ids(self) -> list[LibraryPageId]:
         """Returns the IDs of all pages on current website, exploring the whole tree"""
 
-        tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
+        tree = self._get_api_json(
+            "/pages/home/tree", timeout=CONTEXT.http_timeout_long_seconds
+        )
 
         page_ids: list[LibraryPageId] = []
 
@@ -235,13 +231,15 @@ class MindtouchClient:
     def get_root_page_id(self) -> LibraryPageId:
         """Returns the ID the root of the tree of pages"""
 
-        tree = self._get_api_json("/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS)
+        tree = self._get_api_json(
+            "/pages/home/tree", timeout=CONTEXT.http_timeout_long_seconds
+        )
         return tree["page"]["@id"]
 
     def get_page_tree(self) -> LibraryTree:
 
         tree_data = self._get_api_json(
-            "/pages/home/tree", timeout=HTTP_TIMEOUT_LONG_SECONDS
+            "/pages/home/tree", timeout=CONTEXT.http_timeout_long_seconds
         )
 
         root = LibraryPage(
@@ -283,7 +281,7 @@ class MindtouchClient:
     def get_page_content(self, page: LibraryPage) -> LibraryPageContent:
         """Returns the 'raw' content of a given page"""
         tree = self._get_api_json(
-            f"/pages/{page.id}/contents", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
+            f"/pages/{page.id}/contents", timeout=CONTEXT.http_timeout_normal_seconds
         )
         if not isinstance(tree["body"][0], str):
             raise MindtouchParsingError(
@@ -313,7 +311,7 @@ class MindtouchClient:
         """
         if page.definition is None:
             raw_definition = self._get_api_json(
-                f"/pages/{page.id}", timeout=HTTP_TIMEOUT_NORMAL_SECONDS
+                f"/pages/{page.id}", timeout=CONTEXT.http_timeout_normal_seconds
             )
             raw_tags = raw_definition.get("tags", None)
             if raw_tags is None:
@@ -369,7 +367,7 @@ class MindtouchClient:
         tree = self._get_api_json(
             f"/pages/{template}/contents",
             query_params=f"pageid={page_id}",
-            timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
+            timeout=CONTEXT.http_timeout_normal_seconds,
         )
         if not tree.get("body", ""):
             raise MindtouchParsingError(

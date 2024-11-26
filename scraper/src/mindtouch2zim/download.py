@@ -3,21 +3,9 @@ from typing import IO
 
 import requests
 import requests.structures
-import urllib3
-import zimscraperlib.__about__
-import zimscraperlib.constants
 from zimscraperlib.download import stream_file as stream_file_orig
 
-from mindtouch2zim.constants import CONTACT_INFO, NAME, VERSION
-
-
-def get_user_agent() -> str:
-    return (
-        f"{NAME}/{VERSION} ({CONTACT_INFO}) "
-        f"{zimscraperlib.constants.NAME}/{zimscraperlib.__about__.__version__} "
-        f"requests/{requests.__version__} "
-        f"urllib3/{urllib3._version.__version__}"
-    )
+from mindtouch2zim.context import CONTEXT
 
 
 def stream_file(
@@ -28,14 +16,16 @@ def stream_file(
     proxies: dict[str, str] | None = None,
     max_retries: int | None = 5,
     headers: dict[str, str] | None = None,
-    session: requests.Session | None = None,
     *,
     only_first_block: bool | None = False,
 ) -> tuple[int, requests.structures.CaseInsensitiveDict[str]]:
-    if headers:
-        headers["User-Agent"] = get_user_agent()
-    else:
-        headers = {"User-Agent": get_user_agent()}
+    """Customized version of zimscraperlib stream_file
+
+    We customize the User-Agent header, the session and the timeout
+    """
+    if headers is None:
+        headers = {}
+    headers["User-Agent"] = CONTEXT.wm_user_agent
     return stream_file_orig(
         url=url,
         fpath=fpath,
@@ -44,6 +34,7 @@ def stream_file(
         proxies=proxies,
         max_retries=max_retries,
         headers=headers,
-        session=session,
+        session=CONTEXT.web_session,
         only_first_block=only_first_block,
+        timeout=CONTEXT.http_timeout_normal_seconds,
     )

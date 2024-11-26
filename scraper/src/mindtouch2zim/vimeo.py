@@ -1,16 +1,13 @@
-from mindtouch2zim.constants import (
-    HTTP_TIMEOUT_NORMAL_SECONDS,
-    logger,
-    web_session,
-)
+from mindtouch2zim.constants import logger
+from mindtouch2zim.context import CONTEXT
 from mindtouch2zim.errors import VimeoThumbnailError
 
 
 def get_vimeo_thumbnail_url(video_url: str) -> str:
     """From a vimeo URL - player or normal - retrieve corresponding thumbnail URL"""
-    resp = web_session.get(
+    resp = CONTEXT.web_session.get(
         f"https://vimeo.com/api/oembed.json?url={video_url}",
-        timeout=HTTP_TIMEOUT_NORMAL_SECONDS,
+        timeout=CONTEXT.http_timeout_normal_seconds,
     )
     resp.raise_for_status()
     json_doc = resp.json()
