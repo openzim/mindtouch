@@ -58,7 +58,7 @@ def rewrite_href_src_srcset_attributes(
         new_attr_value = ""
         logger.warning(
             f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
-            f"'{attr_value}') while {context.current_thread_workitem}"
+            f"'{attr_value}') while rewriting {context.current_thread_workitem}"
         )
     return (attr_name, new_attr_value)
 
