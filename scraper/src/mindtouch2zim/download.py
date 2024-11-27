@@ -1,4 +1,5 @@
 import pathlib
+import re
 from typing import IO
 
 import requests
@@ -8,6 +9,8 @@ from zimscraperlib.download import stream_file as stream_file_orig
 from mindtouch2zim.context import Context
 
 context = Context.get()
+
+URL_NEEDING_FAKE_UA_REGEX = re.compile(r"https?:\/\/[a-zA-Z0-9_]+\.ck12\.org")
 
 
 def stream_file(
@@ -27,7 +30,13 @@ def stream_file(
     """
     if headers is None:
         headers = {}
-    headers["User-Agent"] = context.wm_user_agent
+    headers["User-Agent"] = (
+        # Fake browser UA needed for some hosts
+        "Mozilla/5.0 Gecko/20100101 Firefox/132.0"
+        if URL_NEEDING_FAKE_UA_REGEX.match(url)
+        # Our WM compliant and nice UA (to prefer by default since it is the "reality")
+        else context.wm_user_agent
+    )
     return stream_file_orig(
         url=url,
         fpath=fpath,
