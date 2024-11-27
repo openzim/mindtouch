@@ -35,4 +35,10 @@ onMounted(async () => {
 .header-bar {
   padding: 0.25rem;
 }
+
+@media print {
+  .header-bar {
+    display: none;
+  }
+}
 </style>
