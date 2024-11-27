@@ -5,6 +5,8 @@ import { useMainStore } from '@/stores/main'
 
 import logoPlaceholder from '@/assets/logo-placeholder.png'
 
+import globeImage from '@/assets/globe.svg'
+
 // Fetch the home data
 const main = useMainStore()
 onMounted(async () => {
@@ -18,22 +20,43 @@ onMounted(async () => {
 
 <template>
   <div class="header-bar">
-    <router-link to="/">
-      <v-img
-        :lazy-src="logoPlaceholder"
-        :src="main.shared?.logoPath"
-        alt="LibreTexts logo"
-        class="logo"
-        width="auto"
-        height="70"
-      />
-    </router-link>
+    <div id="logo">
+      <router-link to="/">
+        <v-img
+          id="logo"
+          :lazy-src="logoPlaceholder"
+          :src="main.shared?.logoPath"
+          alt="LibreTexts logo"
+          class="logo"
+          width="auto"
+          height="70"
+        />
+      </router-link>
+    </div>
+    <a :href="main.onlinePageUrl" target="_blank" title="View online"
+      ><img id="online" :src="globeImage" alt="View online"
+    /></a>
   </div>
 </template>
 
 <style scoped>
 .header-bar {
   padding: 0.25rem;
+  display: flex;
+  flex-direction: row;
+}
+
+#logo {
+  flex-grow: 1;
+}
+
+a:after {
+  content: none;
+}
+
+img#online {
+  height: 20px;
+  padding-right: 10px;
 }
 
 @media print {

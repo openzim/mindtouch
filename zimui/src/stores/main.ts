@@ -9,6 +9,7 @@ export type RootState = {
   shared: Shared | null
   pagesByPath: { [key: string]: SharedPage }
   pageContent: PageContent | null
+  onlinePageUrl: string
   isLoading: boolean
   errorMessage: string
   errorDetails: string
@@ -20,6 +21,7 @@ export const useMainStore = defineStore('main', {
       shared: null,
       pagesByPath: {},
       pageContent: null,
+      onlinePageUrl: '#',
       isLoading: false,
       errorMessage: '',
       errorDetails: ''
@@ -61,6 +63,7 @@ export const useMainStore = defineStore('main', {
           (response) => {
             this.isLoading = false
             this.pageContent = response.data as PageContent
+            this.onlinePageUrl = `${this.shared?.libraryOnlineUrl}/${page.path}`
             mathjaxService.removeMathJax()
             mathjaxService.addMathJax(mathjaxService.frontFromTitle(page.title))
           },

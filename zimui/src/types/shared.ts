@@ -6,6 +6,7 @@ export interface SharedPage {
 export interface Shared {
   logoPath: string
   rootPagePath: string
+  libraryOnlineUrl: string
   pages: SharedPage[]
 }
 

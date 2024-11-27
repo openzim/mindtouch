@@ -391,6 +391,7 @@ class Processor:
             content=SharedModel(
                 logo_path="content/logo.png",
                 root_page_path=selected_pages[0].path,  # root is always first
+                library_online_url=context.library_url,
                 pages=[
                     PageModel(id=page.id, title=page.title, path=page.path)
                     for page in selected_pages
