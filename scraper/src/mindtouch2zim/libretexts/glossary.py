@@ -2,11 +2,7 @@ from bs4 import BeautifulSoup
 from jinja2 import Template
 from pydantic import BaseModel
 
-
-class GlossaryRewriteError(Exception):
-    """Exception indicating a problem during glossary rewrite"""
-
-    pass
+from mindtouch2zim.errors import GlossaryRewriteError
 
 
 class GlossaryEntry(BaseModel):

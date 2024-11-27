@@ -13,17 +13,8 @@ from mindtouch2zim.constants import (
     logger,
     web_session,
 )
+from mindtouch2zim.errors import APITokenRetrievalError, MindtouchParsingError
 from mindtouch2zim.html import get_soup
-
-
-class MindtouchParsingError(Exception):
-    pass
-
-
-class APITokenRetrievalError(Exception):
-    """Exception raised when failing to retrieve API token to query website API"""
-
-    pass
 
 
 class MindtouchHome(BaseModel):

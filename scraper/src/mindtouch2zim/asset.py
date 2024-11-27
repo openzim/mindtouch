@@ -15,7 +15,11 @@ from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import KNOWN_BAD_ASSETS_REGEX, logger, web_session
-from mindtouch2zim.errors import KnownBadAssetFailedError
+from mindtouch2zim.errors import (
+    KnownBadAssetFailedError,
+    S3CacheError,
+    S3InvalidCredentialsError,
+)
 from mindtouch2zim.utils import backoff_hdlr
 
 SUPPORTED_IMAGE_MIME_TYPES = {
@@ -35,18 +39,6 @@ SUPPORTED_IMAGE_MIME_TYPES = {
 }
 
 WEBP_OPTIONS = WebpMedium().options
-
-
-class S3InvalidCredentialsError(Exception):
-    """Raised when S3 credentials are invalid"""
-
-    pass
-
-
-class S3CacheError(Exception):
-    """Raised when there is a problem with the S3 cache"""
-
-    pass
 
 
 class HeaderData(NamedTuple):
