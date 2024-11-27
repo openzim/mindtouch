@@ -1,6 +1,5 @@
 import io
 import re
-from pathlib import Path
 
 import pytest
 from zimscraperlib.image.probing import format_for
@@ -18,29 +17,8 @@ context = Context.get()
 
 
 @pytest.fixture(scope="module")
-def raw_client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
-    context.library_url = libretexts_url
-    context.cache_folder = cache_folder
-    return MindtouchClient()
-
-
-@pytest.fixture(scope="module")
-def client(
-    raw_client: MindtouchClient,
-    deki_token: str,  # noqa: ARG001
-) -> MindtouchClient:
-    """already authenticated client (avoid having to fetch deki_token in tests)"""
-    return raw_client
-
-
-@pytest.fixture(scope="module")
 def home(client: MindtouchClient) -> MindtouchHome:
     return client.get_home()
-
-
-@pytest.fixture(scope="module")
-def deki_token(raw_client: MindtouchClient) -> str:
-    return raw_client.get_deki_token()
 
 
 @pytest.fixture(scope="module")
