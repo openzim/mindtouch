@@ -407,7 +407,7 @@ class Processor:
             except HTTPError as exc:
                 if exc.response.status_code == HTTPStatus.FORBIDDEN:
                     if page == selected_pages[0]:
-                        raise Exception(
+                        raise PermissionError(
                             "Root page is private, we cannot ZIM it, stopping"
                         ) from None
                     logger.debug(f"Ignoring page {page.id} (private page)")
@@ -417,7 +417,7 @@ class Processor:
         if len(private_pages) == len(selected_pages):
             # we should never get here since we already check fail early if root
             # page is private, but we are better safe than sorry
-            raise Exception("All pages have been ignored, not creating an empty ZIM")
+            raise OSError("All pages have been ignored, not creating an empty ZIM")
         del private_pages
 
         logger.info(f"  Retrieving {len(self.items_to_download)} assets...")

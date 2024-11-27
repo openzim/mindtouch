@@ -20,6 +20,12 @@ class MindtouchParsingError(Exception):
     pass
 
 
+class APITokenRetrievalError(Exception):
+    """Exception raised when failing to retrieve API token to query website API"""
+
+    pass
+
+
 class MindtouchHome(BaseModel):
     home_url: str
     welcome_text_paragraphs: list[str]
@@ -425,7 +431,7 @@ def _get_deki_token_from_home(soup: BeautifulSoup) -> str:
     if not global_settings:
         logger.debug("home content:")
         logger.debug(soup)
-        raise Exception(
+        raise APITokenRetrievalError(
             "Failed to retrieve API token to query website API, missing "
             "mt-global-settings script"
         )
@@ -433,7 +439,7 @@ def _get_deki_token_from_home(soup: BeautifulSoup) -> str:
     if not x_deki_token:
         logger.debug("mt-global-settings script content:")
         logger.debug(global_settings.text)
-        raise Exception(
+        raise APITokenRetrievalError(
             "Failed to retrieve API token to query website API, missing apiToken."
         )
     return x_deki_token
