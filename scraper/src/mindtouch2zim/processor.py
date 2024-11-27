@@ -371,7 +371,12 @@ class Processor:
 
         logger.info("Fetching pages tree")
         context.current_thread_workitem = "pages tree"
-        pages_tree = self.mindtouch_client.get_page_tree()
+        root_page_id = self.content_filter.root_page_id or "home"
+        cover_page_id = (
+            self.mindtouch_client.get_cover_page_id(root_page_id)
+            or root_page_id  # if --root-page-id is not inside a book but a category
+        )
+        pages_tree = self.mindtouch_client.get_page_tree(cover_page_id)
         selected_pages = self.content_filter.filter(pages_tree)
         logger.info(
             f"{len(selected_pages)} pages (out of {len(pages_tree.pages)}) will be "

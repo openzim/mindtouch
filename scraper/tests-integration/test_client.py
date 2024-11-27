@@ -18,10 +18,19 @@ context = Context.get()
 
 
 @pytest.fixture(scope="module")
-def client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
+def raw_client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
     context.library_url = libretexts_url
     context.cache_folder = cache_folder
     return MindtouchClient()
+
+
+@pytest.fixture(scope="module")
+def client(
+    raw_client: MindtouchClient,
+    deki_token: str,  # noqa: ARG001
+) -> MindtouchClient:
+    """already authenticated client (avoid having to fetch deki_token in tests)"""
+    return raw_client
 
 
 @pytest.fixture(scope="module")
@@ -30,13 +39,23 @@ def home(client: MindtouchClient) -> MindtouchHome:
 
 
 @pytest.fixture(scope="module")
-def deki_token(client: MindtouchClient) -> str:
-    return client.get_deki_token()
+def deki_token(raw_client: MindtouchClient) -> str:
+    return raw_client.get_deki_token()
 
 
 @pytest.fixture(scope="module")
 def minimum_number_of_pages() -> int:
     return 8000
+
+
+@pytest.fixture(scope="module")
+def somewhere_page_id() -> LibraryPageId:
+    return "15728"
+
+
+@pytest.fixture(scope="module")
+def nb_somewhere_children() -> int:
+    return 5
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +71,6 @@ def nb_root_children() -> int:
 @pytest.fixture(scope="module")
 def page_tree(
     client: MindtouchClient,
-    deki_token: str,  # noqa: ARG001
 ) -> LibraryTree:
     return client.get_page_tree()
 
@@ -65,18 +83,9 @@ def test_get_deki_token(deki_token: str):
 def test_get_all_pages_ids(
     client: MindtouchClient,
     minimum_number_of_pages: int,
-    deki_token: str,  # noqa: ARG001
 ):
     pages_ids = client.get_all_pages_ids()
     assert len(pages_ids) > minimum_number_of_pages
-
-
-def test_get_root_page_id(
-    client: MindtouchClient,
-    root_page_id: LibraryPageId,
-    deki_token: str,  # noqa: ARG001
-):
-    assert client.get_root_page_id() == root_page_id
 
 
 def test_get_page_tree_pages(
@@ -114,6 +123,19 @@ def test_get_page_tree_subtree(
     assert len(subtree2.pages.keys()) == 94
 
 
+def test_get_page_tree_somewhere(
+    client: MindtouchClient,
+    somewhere_page_id: str,
+    nb_somewhere_children: int,
+):
+    page_tree = client.get_page_tree(somewhere_page_id)
+    assert page_tree.root.id == somewhere_page_id
+    assert len(page_tree.root.children) == nb_somewhere_children
+    assert page_tree.root.title
+    for child in page_tree.root.children:
+        assert child.title
+
+
 def test_get_home_image_url(home: MindtouchHome):
     """Ensures proper image url is retrieved"""
     assert home.welcome_image_url == "https://cdn.libretexts.net/Logos/geo_full.png"
@@ -146,8 +168,10 @@ def test_get_index_page_from_template(
 ):
     """Ensures we can get content of an index page"""
     page_15837 = page_tree.sub_tree("15837").root
+    cover_page_id = client.get_cover_page_id(page_15837)
+    assert cover_page_id
     assert client.get_template_content(
-        page_id=client.get_cover_page_id(page_15837),
+        page_id=cover_page_id,
         template="=Template%253AMindTouch%252FIDF3%252FViews%252FTag_directory",
     )
 
@@ -164,12 +188,36 @@ def test_get_cover_page_encoded_url(
     )
 
 
-def test_get_cover_page_id(
+@pytest.mark.parametrize(
+    "current_id, expected_cover_page_id",
+    [
+        ("15837", "15718"),
+        (":0794f6ff8238481ab880b6484deb65f4", "15718"),
+        ("15844", None),
+        ("34", None),
+        ("home", None),
+    ],
+)
+def test_get_cover_page_id_by_id(
+    client: MindtouchClient,
+    current_id: str,
+    expected_cover_page_id: str | None,
+):
+    assert client.get_cover_page_id(current_id) == expected_cover_page_id
+
+
+@pytest.mark.parametrize(
+    "current_id, expected_cover_page_id",
+    [("15837", "15718"), ("15844", None), ("34", None)],
+)
+def test_get_cover_page_id_by_page(
     client: MindtouchClient,
     page_tree: LibraryTree,
+    current_id: str,
+    expected_cover_page_id: str | None,
 ):
-    page_15837 = page_tree.sub_tree("15837").root
-    assert client.get_cover_page_id(page_15837) == "15718"
+    page_object = page_tree.sub_tree(current_id).root
+    assert client.get_cover_page_id(page_object) == expected_cover_page_id
 
 
 def test_get_home_screen_css_url(home: MindtouchHome):

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from zimscraperlib.rewriting.html import HtmlRewriter
 
 from mindtouch2zim.client import LibraryPage, MindtouchClient
+from mindtouch2zim.libretexts.errors import BadBookPageError
 
 
 class IndexPage(BaseModel):
@@ -28,11 +29,14 @@ def rewrite_index(
     page: LibraryPage,
 ) -> str:
     """Get and rewrite index HTML"""
+    cover_page_id = mindtouch_client.get_cover_page_id(page)
+    if cover_page_id is None:
+        raise BadBookPageError()
     return get_libretexts_transformed_html(
         jinja2_template=jinja2_template,
         libretexts_template_content=rewriter.rewrite(
             mindtouch_client.get_template_content(
-                page_id=mindtouch_client.get_cover_page_id(page),
+                page_id=cover_page_id,
                 template="=Template%253AMindTouch%252FIDF3%252FViews%252FTag_directory",
             )
         ).content,
