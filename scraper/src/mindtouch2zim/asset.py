@@ -15,7 +15,11 @@ from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import KNOWN_BAD_ASSETS_REGEX, logger, web_session
-from mindtouch2zim.errors import KnownBadAssetFailedError
+from mindtouch2zim.errors import (
+    KnownBadAssetFailedError,
+    S3CacheError,
+    S3InvalidCredentialsError,
+)
 from mindtouch2zim.utils import backoff_hdlr
 
 SUPPORTED_IMAGE_MIME_TYPES = {
@@ -111,7 +115,7 @@ class AssetProcessor:
                             f"Exception while processing asset for {asset_url.value}: "
                             f"{exc}"
                         )
-                        raise Exception(  # noqa: B904
+                        raise OSError(  # noqa: B904
                             f"Asset failure threshold ({self.bad_assets_threshold}) "
                             "reached, stopping execution"
                         )
@@ -195,7 +199,7 @@ class AssetProcessor:
         self, s3_key: str, meta: dict[str, str]
     ) -> BytesIO | None:
         if not self.s3_storage:
-            raise Exception("s3 storage must be set")
+            raise AttributeError("s3 storage must be set")
         try:
             asset_content = BytesIO()
             self.s3_storage.download_matching_fileobj(  # pyright: ignore[reportUnknownMemberType]
@@ -205,19 +209,19 @@ class AssetProcessor:
         except NotFoundError:
             return None
         except Exception as exc:
-            raise Exception(f"Failed to download {s3_key} from S3 cache") from exc
+            raise S3CacheError(f"Failed to download {s3_key} from S3 cache") from exc
 
     def _upload_to_s3_cache(
         self, s3_key: str, meta: dict[str, str], asset_content: BytesIO
     ):
         if not self.s3_storage:
-            raise Exception("s3 storage must be set")
+            raise AttributeError("s3 storage must be set")
         try:
             self.s3_storage.upload_fileobj(  # pyright: ignore[reportUnknownMemberType]
                 key=s3_key, fileobj=asset_content, meta=meta
             )
         except Exception as exc:
-            raise Exception(f"Failed to upload {s3_key} to S3 cache") from exc
+            raise S3CacheError(f"Failed to upload {s3_key} to S3 cache") from exc
 
     def _download_from_online(self, asset_url: HttpUrl) -> BytesIO:
         """Download whole content from online server with retry from scraperlib"""
@@ -284,4 +288,4 @@ class AssetProcessor:
                 f"  Key ID: {self.s3_storage.params.get('keyid')}"  # pyright: ignore[reportUnknownMemberType]
             )
             logger.error(f"  Public IP: {get_public_ip()}")
-            raise Exception("Invalid S3 credentials")
+            raise S3InvalidCredentialsError("Invalid S3 credentials")

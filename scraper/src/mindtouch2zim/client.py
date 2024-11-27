@@ -13,11 +13,8 @@ from mindtouch2zim.constants import (
     logger,
     web_session,
 )
+from mindtouch2zim.errors import APITokenRetrievalError, MindtouchParsingError
 from mindtouch2zim.html import get_soup
-
-
-class MindtouchParsingError(Exception):
-    pass
 
 
 class MindtouchHome(BaseModel):
@@ -425,7 +422,7 @@ def _get_deki_token_from_home(soup: BeautifulSoup) -> str:
     if not global_settings:
         logger.debug("home content:")
         logger.debug(soup)
-        raise Exception(
+        raise APITokenRetrievalError(
             "Failed to retrieve API token to query website API, missing "
             "mt-global-settings script"
         )
@@ -433,7 +430,7 @@ def _get_deki_token_from_home(soup: BeautifulSoup) -> str:
     if not x_deki_token:
         logger.debug("mt-global-settings script content:")
         logger.debug(global_settings.text)
-        raise Exception(
+        raise APITokenRetrievalError(
             "Failed to retrieve API token to query website API, missing apiToken."
         )
     return x_deki_token

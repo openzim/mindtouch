@@ -3,12 +3,7 @@ from mindtouch2zim.constants import (
     logger,
     web_session,
 )
-
-
-class VimeoThumbnailError(Exception):
-    """Error raised when there is a problem with a vimeo video"""
-
-    pass
+from mindtouch2zim.errors import VimeoThumbnailError
 
 
 def get_vimeo_thumbnail_url(video_url: str) -> str:

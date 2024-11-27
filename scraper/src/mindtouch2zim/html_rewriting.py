@@ -38,7 +38,7 @@ def rewrite_href_src_srcset_attributes(
     if attr_name not in ("href", "src", "srcset") or not attr_value:
         return
     if not isinstance(url_rewriter, HtmlUrlsRewriter):
-        raise Exception("Expecting HtmlUrlsRewriter")
+        raise TypeError("Expecting instance of HtmlUrlsRewriter")
     new_attr_value = None
     if tag in ["a", "area"]:
         rewrite_result = url_rewriter(
@@ -77,7 +77,7 @@ def rewrite_iframe_tags(
     if tag not in ["iframe"]:
         return
     if not isinstance(url_rewriter, HtmlUrlsRewriter):
-        raise Exception("Expecting HtmlUrlsRewriter")
+        raise TypeError("Expecting instance of HtmlUrlsRewriter")
     src = get_attr_value_from(attrs=attrs, name="src")
     if not src:
         logger.warning(f"Empty src found in iframe while rewriting {rewriting_context}")
@@ -185,7 +185,7 @@ def rewrite_img_tags(
     if tag != "img":
         return
     if not isinstance(url_rewriter, HtmlUrlsRewriter):
-        raise Exception("Expecting HtmlUrlsRewriter")
+        raise TypeError("Expecting instance of HtmlUrlsRewriter")
     if not (srcset_value := get_attr_value_from(attrs, "srcset")):
         # simple case, just need to rewrite the src
         src_value = get_attr_value_from(attrs, "src")
