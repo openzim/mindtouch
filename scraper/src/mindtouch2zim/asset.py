@@ -1,4 +1,5 @@
 import threading
+from functools import partial
 from io import BytesIO
 from typing import NamedTuple
 
@@ -227,7 +228,7 @@ class AssetProcessor:
         return asset_content
 
     @backoff.on_exception(
-        backoff.expo,
+        partial(backoff.expo, base=3, factor=2),
         RequestException,
         max_time=30,  # secs
         on_backoff=backoff_hdlr,
