@@ -21,6 +21,7 @@ def url_rewriter() -> HtmlUrlsRewriter:
         ),
         existing_zim_paths={
             ZimPath("www.acme.com/existing.html"),
+            ZimPath("www.acme.com/existing.html?foo=bar"),
         },
     )
 
@@ -279,6 +280,24 @@ def test_html_unknown_src_href_rewriting(
             '<a href="https://www.foo.bar/index.html">Page 2</a>',
             {},
             id="external",
+        ),
+        pytest.param(
+            '<a href="https://www.acme.com/existing.html#67">Page 2</a>',
+            '<a href="#/existing.html?anchor=67">Page 2</a>',
+            {},
+            id="internal_with_anchor",
+        ),
+        pytest.param(
+            '<a href="https://www.acme.com/existing.html?foo=bar#67">Page 2</a>',
+            '<a href="#/existing.html%3Ffoo%3Dbar?anchor=67">Page 2</a>',
+            {},
+            id="internal_with_anchor_and_query_string",
+        ),
+        pytest.param(
+            '<a href="#67">Page 2</a>',
+            '<a href="#/A_Page?anchor=67">Page 2</a>',
+            {},
+            id="anchor_only",
         ),
     ],
 )

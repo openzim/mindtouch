@@ -10,7 +10,10 @@ const router = createRouter({
       component: HomeView
     }
   ],
-  scrollBehavior() {
+  scrollBehavior(to) {
+    if (to.query.anchor && typeof to.query.anchor === 'string') {
+      return // HomeView will handle the scroll to the anchor
+    }
     return { top: 0, behavior: 'smooth' }
   }
 })

@@ -45,13 +45,26 @@ def rewrite_href_src_srcset_attributes(
         rewrite_result = url_rewriter(
             attr_value, base_href=base_href, rewrite_all_url=False
         )
-        # rewrite links for proper navigation inside ZIM Vue.JS UI (if inside ZIM) or
-        # full link (if outside the current library)
-        new_attr_value = (
-            f"#/{rewrite_result.rewriten_url[len(url_rewriter.library_path.value) :]}"
-            if rewrite_result.rewriten_url.startswith(url_rewriter.library_path.value)
-            else rewrite_result.rewriten_url
-        )
+        # rewrite links for proper navigation inside ZIM Vue.JS UI (if inside ZIM)
+        # or keep full link (if outside the current library)
+        if rewrite_result.rewriten_url.startswith(url_rewriter.library_path.value):
+            relative_path = rewrite_result.rewriten_url[
+                len(url_rewriter.library_path.value) :
+            ]
+            if "#" in relative_path:
+                # transform anchor into query parameter to be processed by Vue.JS UI
+                relative_path = (
+                    relative_path[: relative_path.rfind("#")]
+                    + "?anchor="
+                    + relative_path[relative_path.rfind("#") + 1 :]
+                )
+            new_attr_value = f"#/{relative_path}"
+        elif rewrite_result.rewriten_url.startswith("#"):
+            new_attr_value = (
+                f"#/{url_rewriter.page.path}?anchor={rewrite_result.rewriten_url[1:]}"
+            )
+        else:
+            new_attr_value = rewrite_result.rewriten_url
     else:
         # we remove the src/href/srcset which is not supported, to ensure we won't load
         # external assets
@@ -155,6 +168,7 @@ class HtmlUrlsRewriter(ArticleUrlRewriter):
         self.library_url = library_url
         self.library_path = ArticleUrlRewriter.normalize(HttpUrl(f"{library_url}/"))
         self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+        self.page = page
 
     def __call__(
         self, item_url: str, base_href: str | None, *, rewrite_all_url: bool = True
