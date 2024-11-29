@@ -1,3 +1,4 @@
+import math
 import threading
 from functools import partial
 from io import BytesIO
@@ -8,6 +9,7 @@ from kiwixstorage import KiwixStorage, NotFoundError
 from pif import get_public_ip
 from PIL import Image
 from requests.exceptions import RequestException
+from resizeimage import resizeimage
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
@@ -167,9 +169,30 @@ class AssetProcessor:
 
         logger.debug("Optimizing")
         optimized = BytesIO()
-        with Image.open(unoptimized) as img:
-            img.save(optimized, format="WEBP")
-            del unoptimized
+        with Image.open(unoptimized) as image:
+            if image.width * image.height <= CONTEXT.maximum_image_pixels:
+                image.save(optimized, format="WEBP")
+            else:
+                resizeimage.resize_cover(
+                    image,
+                    [
+                        int(
+                            math.sqrt(
+                                CONTEXT.maximum_image_pixels
+                                * image.width
+                                / image.height
+                            )
+                        ),
+                        int(
+                            math.sqrt(
+                                CONTEXT.maximum_image_pixels
+                                * image.height
+                                / image.width
+                            )
+                        ),
+                    ],
+                ).save(optimized, format="WEBP")
+        del unoptimized
 
         optimize_webp(
             src=optimized,

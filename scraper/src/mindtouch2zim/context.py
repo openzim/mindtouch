@@ -103,6 +103,9 @@ class Context:
     page_title_exclude: re.Pattern | None = None
     root_page_id: str | None = None
 
+    # Maximum number of pixels of images that will be pushed to the ZIM
+    maximum_image_pixels: int = 1280 * 720
+
     @classmethod
     def setup(cls, **kwargs):
         new_instance = cls(**kwargs)
