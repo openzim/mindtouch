@@ -5,7 +5,9 @@ import requests
 import requests.structures
 from zimscraperlib.download import stream_file as stream_file_orig
 
-from mindtouch2zim.context import CONTEXT
+from mindtouch2zim.context import Context
+
+context = Context.get()
 
 
 def stream_file(
@@ -25,7 +27,7 @@ def stream_file(
     """
     if headers is None:
         headers = {}
-    headers["User-Agent"] = CONTEXT.wm_user_agent
+    headers["User-Agent"] = context.wm_user_agent
     return stream_file_orig(
         url=url,
         fpath=fpath,
@@ -34,7 +36,7 @@ def stream_file(
         proxies=proxies,
         max_retries=max_retries,
         headers=headers,
-        session=CONTEXT.web_session,
+        session=context.web_session,
         only_first_block=only_first_block,
-        timeout=CONTEXT.http_timeout_normal_seconds,
+        timeout=context.http_timeout_normal_seconds,
     )

@@ -1,5 +1,3 @@
-import argparse
-
 from pydantic import BaseModel
 
 from mindtouch2zim.errors import InvalidFormatError
@@ -22,15 +20,10 @@ class ZimConfig(BaseModel):
     description: str
     # Long description for the ZIM.
     long_description: str | None
-    # Semicolon delimited list of tags to apply to the ZIM.
-    tags: str
+    # List of tags to apply to the ZIM.
+    tags: list[str] | None
     # Secondary (background) color of ZIM UI
     secondary_color: str
-
-    @staticmethod
-    def of(namespace: argparse.Namespace) -> "ZimConfig":
-        """Parses a namespace to create a new ZimConfig."""
-        return ZimConfig.model_validate(namespace, from_attributes=True)
 
     def format(self, placeholders: dict[str, str]) -> "ZimConfig":
         """Creates a ZimConfig with placeholders replaced and results checked.
@@ -61,5 +54,5 @@ class ZimConfig(BaseModel):
             long_description=(
                 fmt(self.long_description) if self.long_description else None
             ),
-            tags=fmt(self.tags),
+            tags=[fmt(tag) for tag in self.tags] if self.tags else [],
         )

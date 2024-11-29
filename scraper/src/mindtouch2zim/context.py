@@ -1,5 +1,4 @@
-import argparse
-import logging
+import dataclasses
 import os
 import re
 import threading
@@ -8,16 +7,15 @@ from pathlib import Path
 import requests
 from zimscraperlib.__about__ import __version__ as SCRAPERLIB_VERSION  # noqa: N812
 from zimscraperlib.constants import NAME as SCRAPERLIB_NAME
-from zimscraperlib.download import get_session
 
 from mindtouch2zim.constants import (
     NAME,
     STANDARD_KNOWN_BAD_ASSETS_REGEX,
     VERSION,
-    logger,
 )
 
 
+@dataclasses.dataclass(kw_only=True)
 class Context:
     """Class holding every contextual / configuration bits which can be moved
 
@@ -25,11 +23,17 @@ class Context:
     always available.
     """
 
+    # singleton instance
+    _instance: "Context | None" = None
+
+    # debug flag
+    debug: bool = False
+
     # info passed in User-Agent header of web requests
     contact_info: str = "https://www.kiwix.org"
 
     # web session to use everywhere
-    web_session: requests.Session = get_session()
+    web_session: requests.Session
 
     # temporary folder to store temporary assets (e.g. cached API response)
     tmp_folder: Path
@@ -56,13 +60,13 @@ class Context:
     assets_workers: int = 10
 
     # known bad assets
-    bad_assets_regex: re.Pattern | None = re.compile(STANDARD_KNOWN_BAD_ASSETS_REGEX)
+    bad_assets_regex: re.Pattern = re.compile(STANDARD_KNOWN_BAD_ASSETS_REGEX)
 
     # maximum amount of bad assets
     bad_assets_threshold: int = 10
 
     # current processing info to use for debug message / exception
-    _processing_step: threading.local = threading.local()
+    _current_thread_workitem: threading.local
 
     # As of 2024-09-24, all libraries appears to be in English.
     language_iso_639_3: str = "eng"
@@ -77,68 +81,56 @@ class Context:
     # URL to Mindtouch instance
     library_url: str
 
-    def __init__(self) -> None:
-        if path := os.getenv("MINDTOUCH_TMP"):
-            self.tmp_folder = Path(path)
+    # ZIM properties
+    creator: str
+    publisher: str = "openZIM"
+    file_name: str = "{name}_{period}"
+    name: str
+    title: str
+    description: str
+    long_description: str | None = None
+    tags: list[str] | None = None
+
+    # secondary color of the UI
+    secondary_color: str = "#FFFFFF"
+
+    # Content filters
+    page_title_include: re.Pattern | None = None
+    page_id_include: list[str] | None = None
+    page_title_exclude: re.Pattern | None = None
+    root_page_id: str | None = None
+
+    @classmethod
+    def setup(cls, **kwargs):
+        new_instance = cls(**kwargs)
+        if cls._instance:
+            # replace values 'in-place' so that we do not change the Context object
+            # which might be already imported in some modules
+            for field in dataclasses.fields(new_instance):
+                cls._instance.__setattr__(
+                    field.name, new_instance.__getattribute__(field.name)
+                )
+        else:
+            cls._instance = new_instance
+
+    @classmethod
+    def get(cls) -> "Context":
+        if not cls._instance:
+            raise OSError("Uninitialized context")  # pragma: no cover
+        return cls._instance
 
     @property
-    def processing_step(self) -> str:
-        return getattr(self._processing_step, "value", "startup")
+    def current_thread_workitem(self) -> str:
+        return getattr(self._current_thread_workitem, "value", "startup")
 
-    @processing_step.setter
-    def processing_step(self, value: str):
-        self._processing_step.value = value
+    @current_thread_workitem.setter
+    def current_thread_workitem(self, value: str):
+        self._current_thread_workitem.value = value
 
     @property
     def wm_user_agent(self) -> str:
         """User-Agent header compliant with Wikimedia requirements"""
         return (
             f"{NAME}/{VERSION} ({self.contact_info}) "
-            f"{SCRAPERLIB_NAME}/{SCRAPERLIB_VERSION} "
+            f"{SCRAPERLIB_NAME}/{SCRAPERLIB_VERSION}"
         )
-
-
-# Singleton instance holding current scraper context
-CONTEXT = Context()
-
-
-def init_context_from_args(args: argparse.Namespace, tmpdir: str):
-    """Initialize context from argparse parsed args"""
-
-    logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
-
-    if args.optimization_cache:
-        CONTEXT.s3_url_with_credentials = args.optimization_cache
-
-    if args.assets_workers:
-        CONTEXT.assets_workers = args.assets_workers
-
-    if args.bad_assets_regex:
-        CONTEXT.bad_assets_regex = re.compile(
-            f"{args.bad_assets_regex}|{STANDARD_KNOWN_BAD_ASSETS_REGEX}", re.IGNORECASE
-        )
-
-    if args.bad_assets_threshold:
-        CONTEXT.bad_assets_threshold = args.bad_assets_threshold
-
-    if args.contact_info:
-        CONTEXT.contact_info = args.contact_info
-
-    if args.output:
-        CONTEXT.output_folder = Path(args.output)
-
-    CONTEXT.tmp_folder = Path(args.tmp if args.tmp else tmpdir)
-
-    if args.zimui_dist:
-        CONTEXT.zimui_dist = Path(args.zimui_dist)
-
-    if args.stats_filename:
-        CONTEXT.stats_filename = Path(args.stats_filename)
-
-    if args.overwrite:
-        CONTEXT.overwrite_existing_zim = args.overwrite
-
-    if args.illustration_url:
-        CONTEXT.illustration_url = args.illustration_url
-
-    CONTEXT.library_url = str(args.library_url)

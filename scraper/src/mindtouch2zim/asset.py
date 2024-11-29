@@ -13,7 +13,7 @@ from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
 from mindtouch2zim.constants import logger
-from mindtouch2zim.context import CONTEXT
+from mindtouch2zim.context import Context
 from mindtouch2zim.download import stream_file
 from mindtouch2zim.errors import (
     KnownBadAssetFailedError,
@@ -39,6 +39,8 @@ SUPPORTED_IMAGE_MIME_TYPES = {
 }
 
 WEBP_OPTIONS = WebpMedium().options
+
+context = Context.get()
 
 
 class HeaderData(NamedTuple):
@@ -67,7 +69,7 @@ class AssetProcessor:
         creator: Creator,
     ):
         logger.debug(f"Processing asset for {asset_path}")
-        CONTEXT.processing_step = f"processing asset {asset_path}"
+        context.current_thread_workitem = f"processing asset {asset_path}"
         self._process_asset_internal(
             asset_path=asset_path, asset_details=asset_details, creator=creator
         )
@@ -99,15 +101,15 @@ class AssetProcessor:
                 with self.lock:
                     self.bad_assets_count += 1
                     if (
-                        CONTEXT.bad_assets_threshold >= 0
-                        and self.bad_assets_count > CONTEXT.bad_assets_threshold
+                        context.bad_assets_threshold >= 0
+                        and self.bad_assets_count > context.bad_assets_threshold
                     ):
                         logger.error(
                             f"Exception while processing asset for {asset_url.value}: "
                             f"{exc}"
                         )
                         raise OSError(  # noqa: B904
-                            f"Asset failure threshold ({CONTEXT.bad_assets_threshold}) "
+                            f"Asset failure threshold ({context.bad_assets_threshold}) "
                             "reached, stopping execution"
                         )
                     else:
@@ -154,7 +156,7 @@ class AssetProcessor:
         meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION) + ".r"}
         s3_key = f"medium/{asset_path.value}"
 
-        if CONTEXT.s3_url_with_credentials:
+        if context.s3_url_with_credentials:
             if s3_data := self._download_from_s3_cache(s3_key=s3_key, meta=meta):
                 logger.debug("Fetching directly from S3 cache")
                 return s3_data  # found in cache
@@ -177,7 +179,7 @@ class AssetProcessor:
             ),  # pyright: ignore[reportArgumentType]
         )
 
-        if CONTEXT.s3_url_with_credentials:
+        if context.s3_url_with_credentials:
             # upload optimized to S3
             logger.debug("Uploading to S3")
             self._upload_to_s3_cache(
@@ -257,17 +259,17 @@ class AssetProcessor:
             # so raise a custom exception to escape backoff (always important to try
             # once even if asset is expected to not work, but no need to loose time on
             # retrying assets which are expected to be bad)
-            if CONTEXT.bad_assets_regex and CONTEXT.bad_assets_regex.findall(
+            if context.bad_assets_regex and context.bad_assets_regex.findall(
                 asset_url.value
             ):
                 raise KnownBadAssetFailedError() from exc
             raise
 
     def _setup_s3(self):
-        if not CONTEXT.s3_url_with_credentials:
+        if not context.s3_url_with_credentials:
             return
         logger.info("testing S3 Optimization Cache credentials")
-        self.s3_storage = KiwixStorage(CONTEXT.s3_url_with_credentials)
+        self.s3_storage = KiwixStorage(context.s3_url_with_credentials)
         if not self.s3_storage.check_credentials(  # pyright: ignore[reportUnknownMemberType]
             list_buckets=True, bucket=True, write=True, read=True, failsafe=True
         ):

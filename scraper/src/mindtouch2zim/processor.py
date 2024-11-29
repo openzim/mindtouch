@@ -1,6 +1,6 @@
-import argparse
 import datetime
 import json
+import logging
 import re
 from http import HTTPStatus
 from io import BytesIO
@@ -25,7 +25,10 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 from zimscraperlib.zim import Creator
-from zimscraperlib.zim.filesystem import validate_file_creatable
+from zimscraperlib.zim.filesystem import (
+    validate_file_creatable,
+    validate_folder_writable,
+)
 from zimscraperlib.zim.indexing import IndexData
 
 from mindtouch2zim.asset import AssetDetails, AssetProcessor
@@ -42,7 +45,7 @@ from mindtouch2zim.constants import (
     VERSION,
     logger,
 )
-from mindtouch2zim.context import CONTEXT
+from mindtouch2zim.context import Context
 from mindtouch2zim.download import stream_file
 from mindtouch2zim.errors import NoIllustrationFoundError
 from mindtouch2zim.html import get_text
@@ -58,45 +61,26 @@ from mindtouch2zim.ui import (
 from mindtouch2zim.utils import backoff_hdlr
 from mindtouch2zim.zimconfig import ZimConfig
 
+context = Context.get()
+
 
 class ContentFilter(BaseModel):
     """Supports filtering documents by user provided attributes."""
 
     # If specified, only pages with title matching the regex are included.
-    page_title_include: str | None
+    page_title_include: re.Pattern[str] | None
     # If specified, only page with matching ids are included.
-    page_id_include: str | None
+    page_id_include: list[str] | None
     # If specified, page with title matching the regex are excluded.
-    page_title_exclude: str | None
+    page_title_exclude: re.Pattern[str] | None
     # If specified, only this page and its subpages will be included.
     root_page_id: str | None
-
-    @staticmethod
-    def of(namespace: argparse.Namespace) -> "ContentFilter":
-        """Parses a namespace to create a new DocFilter."""
-        return ContentFilter.model_validate(namespace, from_attributes=True)
 
     def filter(self, page_tree: LibraryTree) -> list[LibraryPage]:
         """Filters pages based on the user's choices."""
 
         if self.root_page_id:
             page_tree = page_tree.sub_tree(self.root_page_id)
-
-        title_include_re = (
-            re.compile(self.page_title_include, re.IGNORECASE)
-            if self.page_title_include
-            else None
-        )
-        title_exclude_re = (
-            re.compile(self.page_title_exclude, re.IGNORECASE)
-            if self.page_title_exclude
-            else None
-        )
-        id_include = (
-            [page_id.strip() for page_id in self.page_id_include.split(",")]
-            if self.page_id_include
-            else None
-        )
 
         def is_selected(
             title_include_re: re.Pattern[str] | None,
@@ -120,7 +104,12 @@ class ContentFilter(BaseModel):
             selected_page.id
             for page in page_tree.pages.values()
             for selected_page in page.self_and_parents
-            if is_selected(title_include_re, title_exclude_re, id_include, page)
+            if is_selected(
+                self.page_title_include,
+                self.page_title_exclude,
+                self.page_id_include,
+                page,
+            )
         }
 
         # Then transform set of ids into list of pages
@@ -130,18 +119,13 @@ class ContentFilter(BaseModel):
 class Processor:
     """Generates ZIMs based on the user's configuration."""
 
-    def __init__(
-        self,
-        zim_config: ZimConfig,
-        content_filter: ContentFilter,
-    ) -> None:
+    def __init__(self) -> None:
         """Initializes Processor."""
+
         self.mindtouch_client = MindtouchClient()
-        self.zim_config = zim_config
-        self.content_filter = content_filter
         self.asset_processor = AssetProcessor()
         self.asset_executor = Parallel(
-            n_jobs=CONTEXT.assets_workers,
+            n_jobs=context.assets_workers,
             return_as="generator_unordered",
             backend="threading",
             timeout=600,  # fallback timeout of 10 minutes, should something go wrong
@@ -159,6 +143,40 @@ class Processor:
 
         Returns the path to the gernated ZIM.
         """
+
+        logger.setLevel(level=logging.DEBUG if context.debug else logging.INFO)
+
+        self.zim_config = ZimConfig(
+            file_name=context.file_name,
+            name=context.name,
+            title=context.title,
+            publisher=context.publisher,
+            creator=context.creator,
+            description=context.description,
+            long_description=context.long_description,
+            tags=context.tags,
+            secondary_color=context.secondary_color,
+        )
+        self.content_filter = ContentFilter(
+            page_title_include=context.page_title_include,
+            page_id_include=context.page_id_include,
+            page_title_exclude=context.page_title_exclude,
+            root_page_id=context.root_page_id,
+        )
+
+        # remove trailing slash which we do not want per convention
+        context.library_url = context.library_url.rstrip("/")
+
+        # initialize all paths, ensuring they are ok for operation
+        context.output_folder.mkdir(exist_ok=True)
+        validate_folder_writable(context.output_folder)
+
+        context.tmp_folder.mkdir(exist_ok=True)
+        validate_folder_writable(context.tmp_folder)
+
+        context.cache_folder.mkdir(exist_ok=True)
+        validate_folder_writable(context.cache_folder)
+
         logger.info("Generating ZIM")
 
         # create first progress report and and a timer to update every 10 seconds
@@ -174,20 +192,20 @@ class Processor:
             }
         )
         zim_file_name = f"{self.formatted_config.file_name}.zim"
-        zim_path = CONTEXT.output_folder / zim_file_name
+        zim_path = context.output_folder / zim_file_name
 
         if zim_path.exists():
-            if CONTEXT.overwrite_existing_zim:
+            if context.overwrite_existing_zim:
                 zim_path.unlink()
             else:
                 logger.error(f"  {zim_path} already exists, aborting.")
                 raise SystemExit(2)
 
-        validate_file_creatable(CONTEXT.output_folder, zim_file_name)
+        validate_file_creatable(context.output_folder, zim_file_name)
 
         logger.info(f"  Writing to: {zim_path}")
 
-        logger.debug(f"User-Agent: {CONTEXT.wm_user_agent}")
+        logger.debug(f"User-Agent: {context.wm_user_agent}")
 
         creator = Creator(zim_path, "index.html")
 
@@ -207,7 +225,7 @@ class Processor:
             Description=self.formatted_config.description,
             LongDescription=self.formatted_config.long_description,
             # As of 2024-09-4 all documentation is in English.
-            Language=CONTEXT.language_iso_639_3,
+            Language=context.language_iso_639_3,
             Tags=self.formatted_config.tags,
             Scraper=f"{NAME} v{VERSION}",
             Illustration_48x48_at_1=zim_illustration.getvalue(),
@@ -255,7 +273,7 @@ class Processor:
 
     def run_with_creator(self, creator: Creator):
 
-        CONTEXT.processing_step = "Storing standard files"
+        context.current_thread_workitem = "Storing standard files"
 
         logger.info("  Storing configuration...")
         creator.add_item_for(
@@ -265,20 +283,20 @@ class Processor:
             ).model_dump_json(by_alias=True),
         )
 
-        count_zimui_files = len(list(CONTEXT.zimui_dist.rglob("*")))
+        count_zimui_files = len(list(context.zimui_dist.rglob("*")))
         logger.info(
-            f"Adding {count_zimui_files} Vue.JS UI files in {CONTEXT.zimui_dist}"
+            f"Adding {count_zimui_files} Vue.JS UI files in {context.zimui_dist}"
         )
         self.stats_items_total += count_zimui_files
-        for file in CONTEXT.zimui_dist.rglob("*"):
+        for file in context.zimui_dist.rglob("*"):
             self.stats_items_done += 1
             run_pending()
             if file.is_dir():
                 continue
-            path = str(Path(file).relative_to(CONTEXT.zimui_dist))
+            path = str(Path(file).relative_to(context.zimui_dist))
             logger.debug(f"Adding {path} to ZIM")
             if path == "index.html":  # Change index.html title and add to ZIM
-                index_html_path = CONTEXT.zimui_dist / path
+                index_html_path = context.zimui_dist / path
                 creator.add_item_for(
                     path=path,
                     content=index_html_path.read_text(encoding="utf-8").replace(
@@ -339,7 +357,7 @@ class Processor:
         )
 
         logger.info("Fetching pages tree")
-        CONTEXT.processing_step = "Fetching pages tree"
+        context.current_thread_workitem = "Fetching pages tree"
         pages_tree = self.mindtouch_client.get_page_tree()
         selected_pages = self.content_filter.filter(pages_tree)
         logger.info(
@@ -359,12 +377,12 @@ class Processor:
         )
 
         logger.info("Fetching pages content")
-        CONTEXT.processing_step = "Fetching pages content"
+        context.current_thread_workitem = "Fetching pages content"
         # compute the list of existing pages to properly rewrite links leading
         # in-ZIM / out-of-ZIM
         self.stats_items_total += len(selected_pages)
         existing_html_pages = {
-            ArticleUrlRewriter.normalize(HttpUrl(f"{CONTEXT.library_url}/{page.path}"))
+            ArticleUrlRewriter.normalize(HttpUrl(f"{context.library_url}/{page.path}"))
             for page in selected_pages
         }
         private_pages: list[LibraryPage] = []
@@ -398,7 +416,7 @@ class Processor:
         del private_pages
 
         logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
-        CONTEXT.processing_step = "Processing assets"
+        context.current_thread_workitem = "Processing assets"
         self.stats_items_total += len(self.items_to_download)
 
         res = self.asset_executor(
@@ -467,10 +485,12 @@ class Processor:
         Download content, rewrite HTML and add JSON to ZIM
         """
         logger.debug(f"  Fetching {page.id}")
-        CONTEXT.processing_step = f"processing page {page.id} at {page.encoded_url}"
+        context.current_thread_workitem = (
+            f"processing page {page.id} at {page.encoded_url}"
+        )
         page_content = self.mindtouch_client.get_page_content(page)
         url_rewriter = HtmlUrlsRewriter(
-            CONTEXT.library_url,
+            context.library_url,
             page,
             existing_zim_paths=existing_zim_paths,
         )
@@ -482,7 +502,7 @@ class Processor:
         )
         rewriten = None
         # Handle special rewriting of special libretexts.org pages
-        if CONTEXT.library_url.endswith(".libretexts.org"):
+        if context.library_url.endswith(".libretexts.org"):
             # back-matter special pages on libretexts.org, e.g. "Courses/California_Stat
             # e_University_Los_Angeles/Book:_An_Introduction_to_Geology_(Johnson_Affolte
             # r_Inkenbrandt_and_Mosher)/zz:_Back_Matter/20:_Glossary", running at https:
@@ -538,18 +558,18 @@ class Processor:
         """report progress to stats file"""
 
         logger.info(f"  Progress {self.stats_items_done} / {self.stats_items_total}")
-        if not CONTEXT.stats_filename:
+        if not context.stats_filename:
             return
         progress = {
             "done": self.stats_items_done,
             "total": self.stats_items_total,
         }
-        CONTEXT.stats_filename.write_text(json.dumps(progress, indent=2))
+        context.stats_filename.write_text(json.dumps(progress, indent=2))
 
     def _fetch_zim_illustration(self, home: MindtouchHome) -> BytesIO:
         """Fetch ZIM illustration, convert/resize and return it"""
         for icon_url in (
-            [CONTEXT.illustration_url] if CONTEXT.illustration_url else home.icons_urls
+            [context.illustration_url] if context.illustration_url else home.icons_urls
         ):
             try:
                 logger.debug(f"Downloading {icon_url} illustration")

@@ -15,9 +15,11 @@ from zimscraperlib.rewriting.url_rewriting import (
 
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.constants import logger
-from mindtouch2zim.context import CONTEXT
+from mindtouch2zim.context import Context
 from mindtouch2zim.utils import is_better_srcset_descriptor
 from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
+
+context = Context.get()
 
 # remove all standard rules, they are not adapted to Vue.JS UI
 html_rules.rewrite_attribute_rules.clear()
@@ -56,7 +58,7 @@ def rewrite_href_src_srcset_attributes(
         new_attr_value = ""
         logger.warning(
             f"Unsupported '{attr_name}' encountered in '{tag}' tag (value: "
-            f"'{attr_value}') while {CONTEXT.processing_step}"
+            f"'{attr_value}') while {context.current_thread_workitem}"
         )
     return (attr_name, new_attr_value)
 
@@ -80,7 +82,8 @@ def rewrite_iframe_tags(
     src = get_attr_value_from(attrs=attrs, name="src")
     if not src:
         logger.warning(
-            f"Empty src found in iframe while rewriting {CONTEXT.processing_step}"
+            "Empty src found in iframe while rewriting"
+            f" {context.current_thread_workitem}"
         )
         return
     image_rewriten_url = None
@@ -101,12 +104,13 @@ def rewrite_iframe_tags(
             image_rewriten_url = rewrite_result.rewriten_url
         else:
             logger.debug(
-                f"iframe pointing to {src} in {CONTEXT.processing_step} will not "
-                "have any preview"
+                f"iframe pointing to {src} in {context.current_thread_workitem} will "
+                "not have any preview"
             )
     except Exception as exc:
         logger.warning(
-            f"Failed to rewrite iframe with src {src} in {CONTEXT.processing_step}",
+            f"Failed to rewrite iframe with src {src} in "
+            f"{context.current_thread_workitem}",
             exc_info=exc,
         )
 
