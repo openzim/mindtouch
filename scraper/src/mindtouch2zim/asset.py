@@ -154,7 +154,7 @@ class AssetProcessor:
         - optimize webp
         - upload to S3 cache if configured
         """
-        meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION) + ".r"}
+        meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION)}
         s3_key = f"medium/{asset_path.value}"
 
         if context.s3_url_with_credentials:
@@ -184,7 +184,11 @@ class AssetProcessor:
             # upload optimized to S3
             logger.debug("Uploading to S3")
             self._upload_to_s3_cache(
-                s3_key=s3_key, meta=meta, asset_content=BytesIO(optimized.getvalue())
+                s3_key=s3_key,
+                meta=meta,
+                asset_content=BytesIO(
+                    optimized.getvalue()
+                ),  # use a copy because it will be "consumed" by botocore
             )
 
         return optimized
