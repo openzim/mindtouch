@@ -5,8 +5,8 @@ import threading
 from pathlib import Path
 
 import requests
-from zimscraperlib.__about__ import __version__ as SCRAPERLIB_VERSION  # noqa: N812
 from zimscraperlib.constants import NAME as SCRAPERLIB_NAME
+from zimscraperlib.constants import VERSION as SCRAPERLIB_VERSION
 
 from mindtouch2zim.constants import (
     NAME,
