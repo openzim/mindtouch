@@ -219,8 +219,9 @@ class AssetProcessor:
 
         if context.s3_url_with_credentials:
             if s3_data := self._download_from_s3_cache(s3_key=s3_key, meta=meta):
-                logger.debug("Fetching directly from S3 cache")
-                return s3_data  # found in cache
+                if len(s3_data.getvalue()) > 0:
+                    logger.debug("Fetched directly from S3 cache")
+                    return s3_data  # found in cache
 
         logger.debug("Fetching from online")
         unoptimized = self._download_from_online(asset_url=asset_url)
