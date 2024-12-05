@@ -1,8 +1,10 @@
 import math
+import mimetypes
 import threading
 from functools import partial
 from io import BytesIO
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 import backoff
 from kiwixstorage import KiwixStorage, NotFoundError
@@ -144,6 +146,7 @@ class AssetProcessor:
                     asset_path=asset_path,
                     asset_url=asset_url,
                     always_fetch_online=asset_details.always_fetch_online,
+                    kind=asset_details.kind,
                 )
                 logger.debug(f"Adding asset to {asset_path.value} in the ZIM")
                 creator.add_item_for(
@@ -298,6 +301,23 @@ class AssetProcessor:
         )
         return asset_content
 
+    def _get_mime_type(
+        self,
+        header_data: HeaderData,
+        asset_url: HttpUrl,
+        kind: str | None,
+    ) -> str | None:
+        if header_data.content_type:
+            mime_type = header_data.content_type.split(";")[0].strip()
+        else:
+            mime_type = None
+        if (
+            mime_type is None or mime_type == "application/octet-stream"
+        ) and kind == "img":
+            # try to source mime_type from file extension
+            mime_type, _ = mimetypes.guess_type(urlsplit(asset_url.value).path)
+        return mime_type
+
     @backoff.on_exception(
         partial(backoff.expo, base=3, factor=2),
         RequestException,
@@ -305,26 +325,32 @@ class AssetProcessor:
         on_backoff=backoff_hdlr,
     )
     def get_asset_content(
-        self, asset_path: ZimPath, asset_url: HttpUrl, *, always_fetch_online: bool
+        self,
+        asset_path: ZimPath,
+        asset_url: HttpUrl,
+        kind: str | None,
+        *,
+        always_fetch_online: bool,
     ) -> BytesIO:
         """Download of a given asset, optimize if needed, or download from S3 cache"""
 
         try:
             if not always_fetch_online:
                 header_data = self._get_header_data_for(asset_url)
-                if header_data.content_type:
-                    mime_type = header_data.content_type.split(";")[0].strip()
-                    if mime_type in SUPPORTED_IMAGE_MIME_TYPES:
-                        return self._get_image_content(
-                            asset_path=asset_path,
-                            asset_url=asset_url,
-                            header_data=header_data,
-                        )
-                    else:
-                        logger.debug(
-                            f"Not optimizing, unsupported mime type: {mime_type} for "
-                            f"{context.current_thread_workitem}"
-                        )
+                mime_type = self._get_mime_type(
+                    header_data=header_data, asset_url=asset_url, kind=kind
+                )
+                if mime_type and mime_type in SUPPORTED_IMAGE_MIME_TYPES:
+                    return self._get_image_content(
+                        asset_path=asset_path,
+                        asset_url=asset_url,
+                        header_data=header_data,
+                    )
+                else:
+                    logger.debug(
+                        f"Not optimizing, unsupported mime type: {mime_type} for "
+                        f"{context.current_thread_workitem}"
+                    )
 
             return self._download_from_online(asset_url=asset_url)
         except RequestException as exc:

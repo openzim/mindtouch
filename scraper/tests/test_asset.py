@@ -1,7 +1,7 @@
 import pytest
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 
-from mindtouch2zim.asset import AssetManager
+from mindtouch2zim.asset import AssetManager, AssetProcessor, HeaderData
 
 
 @pytest.fixture()
@@ -15,6 +15,11 @@ def manager() -> AssetManager:
         always_fetch_online=True,
     )  # add an already present asset
     return manager
+
+
+@pytest.fixture()
+def processor() -> AssetProcessor:
+    return AssetProcessor()
 
 
 @pytest.mark.parametrize(
@@ -128,3 +133,57 @@ def test_asset_manager(
         assert asset.used_by == expected_used_bys
         assert asset.kind == expected_kind
         assert asset.always_fetch_online == expected_always_fetch_online
+
+
+@pytest.mark.parametrize(
+    "header_content_type, kind, expected_mime_type",
+    [
+        pytest.param(
+            " image/jpeg ;  fooo",
+            "img",
+            "image/jpeg",
+            id="mimetype_in_content_type",
+        ),
+        pytest.param(
+            "application/octet-stream",
+            "img",
+            "image/jpeg",
+            id="bad_upstream_mimetype_but_img",
+        ),
+        pytest.param(
+            "application/octet-stream",
+            None,
+            "application/octet-stream",
+            id="bad_upstream_mimetype_not_img",
+        ),
+        pytest.param(
+            None,
+            "img",
+            "image/jpeg",
+            id="no_content_type_but_img",
+        ),
+        pytest.param(
+            None,
+            None,
+            None,
+            id="no_content_type_not_img",
+        ),
+    ],
+)
+def test_get_mime_type(
+    header_content_type: str | None,
+    expected_mime_type: str | None,
+    kind: str | None,
+    processor: AssetProcessor,
+):
+
+    assert (
+        processor._get_mime_type(
+            header_data=HeaderData(ident="foo", content_type=header_content_type),
+            asset_url=HttpUrl(
+                "https://www.acme.com/xenolith-of-diorite.jpg?revision=1"
+            ),
+            kind=kind,
+        )
+        == expected_mime_type
+    )
