@@ -302,6 +302,8 @@ class Processor:
         )
 
         count_zimui_files = len(list(context.zimui_dist.rglob("*")))
+        if count_zimui_files == 0:
+            raise OSError(f"No Vue.JS UI files found in {context.zimui_dist}")
         logger.info(
             f"Adding {count_zimui_files} Vue.JS UI files in {context.zimui_dist}"
         )
