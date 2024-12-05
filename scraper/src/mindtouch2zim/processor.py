@@ -31,7 +31,7 @@ from zimscraperlib.zim.filesystem import (
 )
 from zimscraperlib.zim.indexing import IndexData
 
-from mindtouch2zim.asset import AssetDetails, AssetProcessor
+from mindtouch2zim.asset import AssetManager, AssetProcessor
 from mindtouch2zim.client import (
     LibraryPage,
     LibraryPageId,
@@ -126,6 +126,7 @@ class Processor:
 
         self.mindtouch_client = MindtouchClient()
         self.asset_processor = AssetProcessor()
+        self.asset_manager = AssetManager()
         self.asset_executor = Parallel(
             n_jobs=context.assets_workers,
             return_as="generator_unordered",
@@ -355,7 +356,6 @@ class Processor:
         creator.add_item_for("content/logo.png", content=welcome_image.getvalue())
         del welcome_image
 
-        self.items_to_download: dict[ZimPath, AssetDetails] = {}
         self._process_css(
             css_location=self.home.screen_css_url,
             target_filename="screen.css",
@@ -438,15 +438,15 @@ class Processor:
             raise OSError("All pages have been ignored, not creating an empty ZIM")
         del private_pages
 
-        logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
+        logger.info(f"  Retrieving {len(self.asset_manager.assets)} assets...")
         context.current_thread_workitem = "assets"
-        self.stats_items_total += len(self.items_to_download)
+        self.stats_items_total += len(self.asset_manager.assets)
 
         res = self.asset_executor(
             delayed(self.asset_processor.process_asset)(
                 asset_path, asset_details, creator
             )
-            for asset_path, asset_details in self.items_to_download.items()
+            for asset_path, asset_details in self.asset_manager.assets.items()
         )
         for _ in res:
             self.stats_items_done += 1
@@ -478,27 +478,12 @@ class Processor:
         url_rewriter = CssUrlsRewriter(
             article_url=HttpUrl(css_location),
             article_path=ZimPath(target_filename),
+            asset_manager=self.asset_manager,
         )
         css_rewriter = CssRewriter(
             url_rewriter=url_rewriter, base_href=None, remove_errors=True
         )
         result = css_rewriter.rewrite(content=css_content)
-        # Rebuild the dict since we might have "conflict" of ZimPath (two urls leading
-        # to the same ZimPath) and we prefer to use the first URL encountered, where
-        # using self.items_to_download.update while override the key value, prefering
-        # to use last URL encountered.
-        for path, urls in url_rewriter.items_to_download.items():
-            if path in self.items_to_download:
-                self.items_to_download[path].asset_urls.update(urls)
-                self.items_to_download[path].used_by.add(
-                    context.current_thread_workitem
-                )
-            else:
-                self.items_to_download[path] = AssetDetails(
-                    asset_urls=urls,
-                    used_by={context.current_thread_workitem},
-                    always_fetch_online=True,
-                )
         creator.add_item_for(f"content/{target_filename}", content=result)
 
     @backoff.on_exception(
@@ -519,6 +504,7 @@ class Processor:
             context.library_url,
             page,
             existing_zim_paths=existing_zim_paths,
+            asset_manager=self.asset_manager,
         )
         rewriter = HtmlRewriter(
             url_rewriter=url_rewriter,
@@ -595,19 +581,6 @@ class Processor:
         if not rewriten:
             # Default rewriting for 'normal' pages
             rewriten = rewriter.rewrite(page_content.html_body).content
-        for path, urls in url_rewriter.items_to_download.items():
-
-            if path in self.items_to_download:
-                self.items_to_download[path].asset_urls.update(urls)
-                self.items_to_download[path].used_by.add(
-                    context.current_thread_workitem
-                )
-            else:
-                self.items_to_download[path] = AssetDetails(
-                    asset_urls=urls,
-                    used_by={context.current_thread_workitem},
-                    always_fetch_online=False,
-                )
         creator.add_item_for(
             f"content/page_content_{page.id}.json",
             content=PageContentModel(html_body=rewriten).model_dump_json(by_alias=True),
@@ -726,12 +699,13 @@ class CssUrlsRewriter(ArticleUrlRewriter):
         *,
         article_url: HttpUrl,
         article_path: ZimPath,
+        asset_manager: AssetManager,
     ):
         super().__init__(
             article_url=article_url,
             article_path=article_path,
         )
-        self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
+        self.asset_manager = asset_manager
 
     def __call__(
         self,
@@ -743,8 +717,11 @@ class CssUrlsRewriter(ArticleUrlRewriter):
         result = super().__call__(item_url, base_href, rewrite_all_url=True)
         if result.zim_path is None:
             return result
-        if result.zim_path in self.items_to_download:
-            self.items_to_download[result.zim_path].add(HttpUrl(result.absolute_url))
-        else:
-            self.items_to_download[result.zim_path] = {HttpUrl(result.absolute_url)}
+        self.asset_manager.add_asset(
+            asset_path=result.zim_path,
+            asset_url=HttpUrl(result.absolute_url),
+            used_by=context.current_thread_workitem,
+            kind=None,
+            always_fetch_online=True,
+        )
         return result

@@ -13,6 +13,7 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 
+from mindtouch2zim.asset import AssetManager
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
@@ -106,14 +107,14 @@ def rewrite_iframe_tags(
                 f'https://i.ytimg.com/vi/{ytb_match.group("id")}/hqdefault.jpg',
                 base_href=base_href,
             )
-            url_rewriter.add_item_to_download(rewrite_result)
+            url_rewriter.add_item_to_download(rewrite_result, "img")
             image_rewriten_url = rewrite_result.rewriten_url
         elif VIMEO_IFRAME_RE.match(src):
             rewrite_result = url_rewriter(
                 get_vimeo_thumbnail_url(src),
                 base_href=base_href,
             )
-            url_rewriter.add_item_to_download(rewrite_result)
+            url_rewriter.add_item_to_download(rewrite_result, "img")
             image_rewriten_url = rewrite_result.rewriten_url
         else:
             logger.debug(
@@ -158,7 +159,11 @@ class HtmlUrlsRewriter(ArticleUrlRewriter):
     """
 
     def __init__(
-        self, library_url: str, page: LibraryPage, existing_zim_paths: set[ZimPath]
+        self,
+        library_url: str,
+        page: LibraryPage,
+        existing_zim_paths: set[ZimPath],
+        asset_manager: AssetManager,
     ):
         super().__init__(
             article_url=HttpUrl(f"{library_url}/{page.path}"),
@@ -167,8 +172,8 @@ class HtmlUrlsRewriter(ArticleUrlRewriter):
         )
         self.library_url = library_url
         self.library_path = ArticleUrlRewriter.normalize(HttpUrl(f"{library_url}/"))
-        self.items_to_download: dict[ZimPath, set[HttpUrl]] = {}
         self.page = page
+        self.asset_manager = asset_manager
 
     def __call__(
         self, item_url: str, base_href: str | None, *, rewrite_all_url: bool = True
@@ -176,19 +181,19 @@ class HtmlUrlsRewriter(ArticleUrlRewriter):
         result = super().__call__(item_url, base_href, rewrite_all_url=rewrite_all_url)
         return result
 
-    def add_item_to_download(self, rewrite_result: RewriteResult):
+    def add_item_to_download(self, rewrite_result: RewriteResult, kind: str | None):
         """Add item to download based on rewrite result"""
-        if rewrite_result.zim_path is not None:
-            # if item is expected to be inside the ZIM, store asset information so that
-            # we can download it afterwards
-            if rewrite_result.zim_path in self.items_to_download:
-                self.items_to_download[rewrite_result.zim_path].add(
-                    HttpUrl(rewrite_result.absolute_url)
-                )
-            else:
-                self.items_to_download[rewrite_result.zim_path] = {
-                    HttpUrl(rewrite_result.absolute_url)
-                }
+        if rewrite_result.zim_path is None:
+            return
+        # if item is expected to be inside the ZIM, store asset information so that
+        # we can download it afterwards
+        self.asset_manager.add_asset(
+            asset_path=rewrite_result.zim_path,
+            asset_url=HttpUrl(rewrite_result.absolute_url),
+            used_by=context.current_thread_workitem,
+            kind=kind,
+            always_fetch_online=False,
+        )
 
 
 @html_rules.rewrite_tag()
@@ -234,7 +239,7 @@ def rewrite_img_tags(
     rewrite_result = url_rewriter(src_value, base_href=base_href, rewrite_all_url=True)
     # add 'content/' to the URL since all assets will be stored in the sub.-path
     new_attr_value = f"content/{rewrite_result.rewriten_url}"
-    url_rewriter.add_item_to_download(rewrite_result)
+    url_rewriter.add_item_to_download(rewrite_result, "img")
 
     values = " ".join(
         format_attr(*attr)
