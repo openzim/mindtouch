@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, ref } from 'vue'
+import { watch, ref, nextTick } from 'vue'
 
 import { useMainStore } from '@/stores/main'
 import { useRoute } from 'vue-router'
@@ -39,6 +39,23 @@ watch(
     page.value = getPage()
     if (page.value) {
       document.title = page.value.title
+    }
+  }
+)
+
+// Scroll to anchor when present (cannot be done in router, page is not yet loaded)
+watch(
+  // We need to watch htmlBody to be sure that body is loaded, and route.query.anchor
+  // to know when anchor is present
+  () => (main.pageContent?.htmlBody || '') + route.query.anchor,
+  async () => {
+    await nextTick()
+    if (typeof route.query.anchor !== 'string') {
+      return
+    }
+    const anchors = document.querySelectorAll(`a[name="${route.query.anchor}"]`)
+    if (anchors && anchors.length > 0) {
+      return anchors[0].scrollIntoView()
     }
   }
 )

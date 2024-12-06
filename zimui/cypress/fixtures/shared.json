@@ -1,6 +1,7 @@
 {
   "logoPath": "content/logo.png",
   "rootPagePath": "a_folder/a_page",
+  "libraryOnlineUrl": "http://www.acme.com",
   "pages": [
     {
       "id": "123",

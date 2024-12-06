@@ -21,6 +21,7 @@ class PageContentModel(CamelModel):
 class SharedModel(CamelModel):
     logo_path: str
     root_page_path: str
+    library_online_url: str
     pages: list[PageModel]
 
 

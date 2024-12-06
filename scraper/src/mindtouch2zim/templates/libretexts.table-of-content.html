@@ -86,20 +86,20 @@
     "Table of Contents"] %}
     <li>
       <h2 class="matter_entry">
-        <a href="{{ content.encoded_url }}">{{ content.title }}</a>
+        <a href="/{{ content.path }}">{{ content.title }}</a>
       </h2>
     </li>
     {% endif %} {% endfor %} {% else %}
     <li>
       <h2 class="{{ 'chapter_entry' if chapter.children else 'matter_entry' }}">
-        <a href="{{ chapter.encoded_url }}">{{ chapter.title }}</a>
+        <a href="/{{ chapter.path }}">{{ chapter.title }}</a>
       </h2>
       {% if chapter.children %}
       <ul class="section_level">
         {% for content in chapter.children %}
         <li>
           <span class="content_entry">
-            <a href="{{ content.encoded_url }}">{{ content.title }}</a>
+            <a href="/{{ content.path }}">{{ content.title }}</a>
           </span>
         </li>
         {% endfor %}
