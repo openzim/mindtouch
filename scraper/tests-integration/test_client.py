@@ -11,14 +11,16 @@ from mindtouch2zim.client import (
     MindtouchClient,
     MindtouchHome,
 )
-from mindtouch2zim.context import CONTEXT
+from mindtouch2zim.context import Context
 from mindtouch2zim.download import stream_file
+
+context = Context.get()
 
 
 @pytest.fixture(scope="module")
 def client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
-    CONTEXT.library_url = libretexts_url
-    CONTEXT.cache_folder = cache_folder
+    context.library_url = libretexts_url
+    context.cache_folder = cache_folder
     return MindtouchClient()
 
 
