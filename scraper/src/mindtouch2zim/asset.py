@@ -1,3 +1,4 @@
+import math
 import threading
 from functools import partial
 from io import BytesIO
@@ -8,6 +9,7 @@ from kiwixstorage import KiwixStorage, NotFoundError
 from pif import get_public_ip
 from PIL import Image
 from requests.exceptions import RequestException
+from resizeimage import resizeimage
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
@@ -154,7 +156,7 @@ class AssetProcessor:
         - optimize webp
         - upload to S3 cache if configured
         """
-        meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION) + ".r"}
+        meta = {"ident": header_data.ident, "version": str(WebpMedium.VERSION)}
         s3_key = f"medium/{asset_path.value}"
 
         if context.s3_url_with_credentials:
@@ -167,9 +169,19 @@ class AssetProcessor:
 
         logger.debug("Optimizing")
         optimized = BytesIO()
-        with Image.open(unoptimized) as img:
-            img.save(optimized, format="WEBP")
-            del unoptimized
+        with Image.open(unoptimized) as image:
+            if image.width * image.height <= context.maximum_image_pixels:
+                image.save(optimized, format="WEBP")
+            else:
+                resizeimage.resize_width(
+                    image,
+                    int(
+                        math.sqrt(
+                            context.maximum_image_pixels * image.width / image.height
+                        )
+                    ),
+                ).save(optimized, format="WEBP")
+        del unoptimized
 
         optimize_webp(
             src=optimized,
@@ -184,7 +196,11 @@ class AssetProcessor:
             # upload optimized to S3
             logger.debug("Uploading to S3")
             self._upload_to_s3_cache(
-                s3_key=s3_key, meta=meta, asset_content=BytesIO(optimized.getvalue())
+                s3_key=s3_key,
+                meta=meta,
+                asset_content=BytesIO(
+                    optimized.getvalue()
+                ),  # use a copy because it will be "consumed" by botocore
             )
 
         return optimized
