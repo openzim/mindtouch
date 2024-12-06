@@ -1,0 +1,42 @@
+<h2>Overview</h2>
+<p>
+  <strong>Title:</strong>
+  <a href="{{ data.text.url }}" target="_blank" rel="noreferrer">{{ data.text.title }}</a>
+</p>
+<p><strong>Webpages:</strong>{{ data.text.totalPages}}</p>
+{% if special_restrictions %}
+<p>
+  <strong>Applicable Restrictions:</strong>
+  {{ special_restrictions }}
+</p>
+{% endif %}
+<p><strong>All licenses found:</strong></p>
+<ul>
+  {% for license in data.meta.licenses %}
+  <li>
+    <a href="{{ license.link }}" target="_blank" rel="noreferrer"
+      >{{ license.label }}{% if license.version %}&nbsp;{{ license.version }}{% endif %}</a
+    >: {{ license.percent }}% ({{ license.count }} {% if license.count > 1 %}pages{% else %}page{%
+    endif %})
+  </li>
+  {% endfor %}
+</ul>
+<h2>By Page</h2>
+{% macro render_detail(detail) -%}
+<li>
+  <a href="{{ detail.url }}" target="_blank">{{ detail.title }}</a> {% if detail.license %} -
+  <a href="{{ detail.license.link }}" target="_blank" rel="noreferrer">
+    <em>{{ detail.license.label }} {{ detail.license.version or "" }}</em></a
+  >
+  {% endif %} {% if detail.children %}
+  <ul>
+    {% for child in detail.children %} {{ render_detail(child) }} {% endfor %}
+  </ul>
+  {% endif %}
+</li>
+{% endmacro %}
+<div style="column-count: 2; margin-top: 1em">
+  <ul style="margin: 0">
+    {{ render_detail(data.text) }}
+  </ul>
+</div>
