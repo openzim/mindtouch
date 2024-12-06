@@ -30,3 +30,19 @@ def test_context_setup_again(context_defaults):
     context = Context.get()
     assert context.title == "A title"
     assert context == processor_context  # check both objects are same
+
+
+@pytest.mark.parametrize(
+    "url, matching",
+    [
+        pytest.param("http://localhost:9999/foo", True, id="localhost1"),
+        pytest.param("https://localhost/foo/bar.html", True, id="localhost2"),
+        pytest.param("http://a.mtstatic.com/@cache/bar", True, id="mtstatic_cache"),
+        pytest.param("https://a.mtstatic.com/@style/bar", True, id="mtstatic_style"),
+        pytest.param("https://a.mtstatic.com/@stule/bar", False, id="mtstatic_stule"),
+        pytest.param("https://aamtstaticacom/@style/bar", False, id="replace_dots"),
+    ],
+)
+def test_context_bad_assets(url: str, *, matching: bool):
+    matches = Context.bad_assets_regex.findall(url)
+    assert matches if matching else not matches
