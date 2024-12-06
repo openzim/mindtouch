@@ -170,27 +170,16 @@ class AssetProcessor:
         logger.debug("Optimizing")
         optimized = BytesIO()
         with Image.open(unoptimized) as image:
-            if image.width * image.height <= CONTEXT.maximum_image_pixels:
+            if image.width * image.height <= context.maximum_image_pixels:
                 image.save(optimized, format="WEBP")
             else:
-                resizeimage.resize_cover(
+                resizeimage.resize_width(
                     image,
-                    [
-                        int(
-                            math.sqrt(
-                                CONTEXT.maximum_image_pixels
-                                * image.width
-                                / image.height
-                            )
-                        ),
-                        int(
-                            math.sqrt(
-                                CONTEXT.maximum_image_pixels
-                                * image.height
-                                / image.width
-                            )
-                        ),
-                    ],
+                    int(
+                        math.sqrt(
+                            context.maximum_image_pixels * image.width / image.height
+                        )
+                    ),
                 ).save(optimized, format="WEBP")
         del unoptimized
 
