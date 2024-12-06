@@ -1,4 +1,3 @@
-import os
 import re
 import tempfile
 from pathlib import Path
@@ -6,6 +5,7 @@ from typing import Any
 
 import pytest
 
+import mindtouch2zim.entrypoint
 from mindtouch2zim.context import Context
 from mindtouch2zim.entrypoint import prepare_context
 
@@ -101,33 +101,17 @@ def test_entrypoint_defaults(
     assert context.__getattribute__(context_name) == expected_context_value
 
 
-@pytest.mark.parametrize(
-    "env_var_name, env_var_value, context_name, expected_context_value",
-    [
-        pytest.param(
-            "MINDTOUCH_TMP",
-            "../foo/bar",
-            "tmp_folder",
-            Path("../foo/bar"),
-            id="tmp_folder",
-        ),
-    ],
-)
 def test_entrypoint_defaults_env_var(
     good_cli_args: list[str],
     tmpdir: str,
-    env_var_name: str,
-    env_var_value: str,
-    context_name: str,
-    expected_context_value: Any,
 ):
     """Not passing optional args sources Context default in environement variable."""
     try:
-        os.environ[env_var_name] = env_var_value
+        mindtouch2zim.entrypoint.MINDTOUCH_TMP = "../foo/bar"
         prepare_context(good_cli_args, tmpdir)
-        assert context.__getattribute__(context_name) == expected_context_value
+        assert context.tmp_folder == Path("../foo/bar")
     finally:
-        os.environ.pop(env_var_name)
+        mindtouch2zim.entrypoint.MINDTOUCH_TMP = None
 
 
 @pytest.mark.parametrize(

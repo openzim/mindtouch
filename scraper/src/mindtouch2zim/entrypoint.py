@@ -1,5 +1,4 @@
 import argparse
-import os
 import re
 import threading
 from pathlib import Path
@@ -16,7 +15,7 @@ from mindtouch2zim.constants import (
     STANDARD_KNOWN_BAD_ASSETS_REGEX,
     VERSION,
 )
-from mindtouch2zim.context import Context
+from mindtouch2zim.context import MINDTOUCH_TMP, Context
 
 
 def prepare_context(raw_args: list[str], tmpdir: str) -> None:
@@ -26,8 +25,6 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
         prog=NAME,
     )
 
-    parser.register("type", "Path", lambda x: Path(x))
-
     parser.add_argument(
         "--creator",
         help="Name of content creator.",
@@ -36,13 +33,13 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
 
     parser.add_argument(
         "--publisher",
-        help=f"Publisher name. Default: {Context.publisher!r}",
+        help=f"Publisher name. Default: {Context.publisher!s}",
     )
 
     parser.add_argument(
         "--file-name",
         help="Custom file name format for individual ZIMs. "
-        f"Default: {Context.file_name!r}",
+        f"Default: {Context.file_name!s}",
     )
 
     parser.add_argument(
@@ -82,7 +79,7 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
     parser.add_argument(
         "--secondary-color",
         help="Secondary (background) color of ZIM UI. Default: "
-        f"{Context.secondary_color!r}",
+        f"{Context.secondary_color!s}",
     )
 
     parser.add_argument(
@@ -141,14 +138,14 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
     parser.add_argument(
         "--output",
         help="Output folder for ZIMs. Default: /output",
-        type="Path",
+        type=Path,
         dest="output_folder",
     )
 
     parser.add_argument(
         "--tmp",
         help="Temporary folder for cache, intermediate files, ...",
-        type="Path",
+        type=Path,
         dest="tmp_folder",
     )
 
@@ -156,7 +153,7 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
 
     parser.add_argument(
         "--zimui-dist",
-        type="Path",
+        type=Path,
         help=(
             "Dev option to customize directory containing Vite build output from the "
             "ZIM UI Vue.JS application"
@@ -165,7 +162,7 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
 
     parser.add_argument(
         "--stats-filename",
-        type="Path",
+        type=Path,
         help="Path to store the progress JSON file to.",
     )
 
@@ -216,8 +213,8 @@ def prepare_context(raw_args: list[str], tmpdir: str) -> None:
     # initialize some context properties that are "dynamic" (i.e. not constant
     # values like an int, a string, ...)
     if not args_dict.get("tmp_folder", None):
-        if tmp_from_env := os.getenv("MINDTOUCH_TMP"):
-            args_dict["tmp_folder"] = Path(tmp_from_env)
+        if MINDTOUCH_TMP:
+            args_dict["tmp_folder"] = Path(MINDTOUCH_TMP)
         else:
             args_dict["tmp_folder"] = Path(tmpdir)
 

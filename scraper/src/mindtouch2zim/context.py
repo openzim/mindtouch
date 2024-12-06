@@ -14,6 +14,8 @@ from mindtouch2zim.constants import (
     VERSION,
 )
 
+MINDTOUCH_TMP = os.getenv("MINDTOUCH_TMP")
+
 
 @dataclasses.dataclass(kw_only=True)
 class Context:

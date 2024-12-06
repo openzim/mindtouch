@@ -39,7 +39,7 @@ class ZimConfig(BaseModel):
             except KeyError as e:
                 valid_placeholders = ", ".join(sorted(placeholders.keys()))
                 raise InvalidFormatError(
-                    f"Invalid placeholder {e!s} in {string!r}, "
+                    f"Invalid placeholder {e!s} in {string!s}, "
                     f"valid placeholders are: {valid_placeholders}"
                 ) from e
 
