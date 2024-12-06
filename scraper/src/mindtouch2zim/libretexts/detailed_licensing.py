@@ -7,6 +7,7 @@ from zimscraperlib.rewriting.html import HtmlRewriter
 from mindtouch2zim.client import LibraryPage, MindtouchClient
 from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
+from mindtouch2zim.libretexts.errors import BadBookPageError
 
 context = Context.get()
 
@@ -87,11 +88,12 @@ def rewrite_detailed_licensing(
 
     """
 
+    cover_page_url = mindtouch_client.get_cover_page_encoded_url(page)
+    if cover_page_url is None:
+        raise BadBookPageError()
     return rewriter.rewrite(
         _render_html_from_data(
             jinja2_template=jinja2_template,
-            licensing_data=_get_licensing_report_data(
-                mindtouch_client.get_cover_page_encoded_url(page)
-            ),
+            licensing_data=_get_licensing_report_data(cover_page_url),
         )
     ).content
