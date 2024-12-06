@@ -515,22 +515,29 @@ class Processor:
         rewriten = None
         # Handle special rewriting of special libretexts.org pages
         if context.library_url.endswith(".libretexts.org"):
-            # back-matter special pages on libretexts.org, e.g. "Courses/California_Stat
-            # e_University_Los_Angeles/Book:_An_Introduction_to_Geology_(Johnson_Affolte
-            # r_Inkenbrandt_and_Mosher)/zz:_Back_Matter/20:_Glossary", running at https:
-            # //geo.libretexts.org/Courses/California_State_University_Los_Angeles/Book%
-            # 3A_An_Introduction_to_Geology_(Johnson_Affolter_Inkenbrandt_and_Mosher)/zz
-            # %3A_Back_Matter/20%3A_Glossary
-            # same kind of pattern works for glossary, index, ... pages
+            # Let's try to guess back-matter special pages on libretexts.org based on
+            # HTML content
             try:
-                if re.match(r"^.*\/zz:_[^\/]*?\/10:_[^\/]*$", page.path):
+                if (
+                    "https://cdn.libretexts.net/github/LibreTextsMain/Leo "
+                    "Jayachandran/DynamicIndex/dynamicIndexMaker.js"
+                    in page_content.html_body
+                ):
+                    logger.debug(
+                        f"Rewriting {context.current_thread_workitem} as libretexts.org"
+                        " index"
+                    )
                     rewriten = rewrite_index(
                         rewriter=rewriter,
                         jinja2_template=self.libretexts_index_template,
                         mindtouch_client=self.mindtouch_client,
                         page=page,
                     )
-                elif re.match(r"^.*\/zz:_[^\/]*?\/20:_[^\/]*$", page.path):
+                elif "new LibreTextsGlossarizer()" in page_content.html_body:
+                    logger.debug(
+                        f"Rewriting {context.current_thread_workitem} as libretexts.org"
+                        " glossary"
+                    )
                     rewriten = rewrite_glossary(
                         jinja2_template=self.libretexts_glossary_template,
                         original_content=page_content.html_body,
