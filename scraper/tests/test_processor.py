@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from mindtouch2zim.client import LibraryPage, LibraryTree
@@ -135,7 +137,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
     [
         pytest.param(
             ContentFilter(
-                page_title_include=r"^1\..*",
+                page_title_include=re.compile(r"^1\..*", re.IGNORECASE),
                 page_title_exclude=None,
                 page_id_include=None,
                 root_page_id=None,
@@ -145,7 +147,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include=r"^2\..*",
+                page_title_include=re.compile(r"^2\..*", re.IGNORECASE),
                 page_title_exclude=None,
                 page_id_include=None,
                 root_page_id=None,
@@ -157,7 +159,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
             ContentFilter(
                 page_title_include=None,
                 page_title_exclude=None,
-                page_id_include="26,27,28",
+                page_id_include=["26", "27", "28"],
                 root_page_id=None,
             ),
             ["24", "25", "26", "27", "28"],
@@ -165,7 +167,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include="ground",
+                page_title_include=re.compile("ground", re.IGNORECASE),
                 page_title_exclude=None,
                 page_id_include=None,
                 root_page_id=None,
@@ -175,8 +177,8 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include=r"^1\..*",
-                page_title_exclude="Tree",
+                page_title_include=re.compile(r"^1\..*", re.IGNORECASE),
+                page_title_exclude=re.compile("Tree", re.IGNORECASE),
                 page_id_include=None,
                 root_page_id=None,
             ),
@@ -186,8 +188,8 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         pytest.param(
             ContentFilter(
                 page_title_include=None,
-                page_title_exclude="Tree",
-                page_id_include="26,27,28",
+                page_title_exclude=re.compile("Tree", re.IGNORECASE),
+                page_id_include=["26", "27", "28"],
                 root_page_id=None,
             ),
             ["24", "25", "26", "28"],
@@ -195,8 +197,8 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include="ground",
-                page_title_exclude="^2",
+                page_title_include=re.compile("ground", re.IGNORECASE),
+                page_title_exclude=re.compile("^2", re.IGNORECASE),
                 page_id_include=None,
                 root_page_id=None,
             ),
@@ -205,8 +207,8 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include=r"^1\..*",
-                page_title_exclude="tree",
+                page_title_include=re.compile(r"^1\..*", re.IGNORECASE),
+                page_title_exclude=re.compile("tree", re.IGNORECASE),
                 page_id_include=None,
                 root_page_id=None,
             ),
@@ -215,7 +217,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include="tree",
+                page_title_include=re.compile("tree", re.IGNORECASE),
                 page_title_exclude=None,
                 page_id_include=None,
                 root_page_id=None,
@@ -225,7 +227,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include="^tree",
+                page_title_include=re.compile("^tree", re.IGNORECASE),
                 page_title_exclude=None,
                 page_id_include=None,
                 root_page_id=None,
@@ -245,7 +247,7 @@ def library_tree(dummy_encoded_url) -> LibraryTree:
         ),
         pytest.param(
             ContentFilter(
-                page_title_include=r"^1\.1.*",
+                page_title_include=re.compile(r"^1\.1.*", re.IGNORECASE),
                 page_title_exclude=None,
                 page_id_include=None,
                 root_page_id="25",

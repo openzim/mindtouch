@@ -3,9 +3,6 @@ import re
 from pathlib import Path
 
 import pytest
-from zimscraperlib.download import (
-    stream_file,  # pyright: ignore[reportUnknownVariableType]
-)
 from zimscraperlib.image.probing import format_for
 
 from mindtouch2zim.client import (
@@ -14,11 +11,17 @@ from mindtouch2zim.client import (
     MindtouchClient,
     MindtouchHome,
 )
+from mindtouch2zim.context import Context
+from mindtouch2zim.download import stream_file
+
+context = Context.get()
 
 
 @pytest.fixture(scope="module")
 def client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
-    return MindtouchClient(library_url=libretexts_url, cache_folder=cache_folder)
+    context.library_url = libretexts_url
+    context.cache_folder = cache_folder
+    return MindtouchClient()
 
 
 @pytest.fixture(scope="module")

@@ -1,6 +1,6 @@
 import argparse
-import logging
-import os
+import re
+import threading
 from pathlib import Path
 
 from zimscraperlib.constants import (
@@ -8,39 +8,22 @@ from zimscraperlib.constants import (
     MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH,
     RECOMMENDED_MAX_TITLE_LENGTH,
 )
-from zimscraperlib.zim.filesystem import validate_folder_writable
+from zimscraperlib.download import get_session
 
-from mindtouch2zim.client import MindtouchClient
 from mindtouch2zim.constants import (
     NAME,
+    STANDARD_KNOWN_BAD_ASSETS_REGEX,
     VERSION,
-    logger,
 )
-from mindtouch2zim.processor import ContentFilter, Processor
-from mindtouch2zim.zimconfig import ZimConfig
+from mindtouch2zim.context import MINDTOUCH_TMP, Context
 
 
-def zim_defaults() -> ZimConfig:
-    """Returns the default configuration for ZIM generation."""
-    return ZimConfig(
-        secondary_color="#FFFFFF",
-        file_name="{name}_{period}",
-        name="not_used",  # this is always replaced because arg is required",
-        creator="not_used",  # this is always replaced because arg is required",
-        publisher="openZIM",
-        title="not_used",  # this is always replaced because arg is required",
-        description="not_used",  # this is always replaced because arg is required",
-        long_description=None,
-        tags="",
+def prepare_context(raw_args: list[str], tmpdir: str) -> None:
+    """Initialize scraper context from command line arguments"""
+
+    parser = argparse.ArgumentParser(
+        prog=NAME,
     )
-
-
-def add_zim_config_flags(parser: argparse.ArgumentParser, defaults: "ZimConfig"):
-    """
-    Adds flags related to zim configuration
-
-    Flags are added to the given parser with given defaults.
-    """
 
     parser.add_argument(
         "--creator",
@@ -50,15 +33,13 @@ def add_zim_config_flags(parser: argparse.ArgumentParser, defaults: "ZimConfig")
 
     parser.add_argument(
         "--publisher",
-        help=f"Publisher name. Default: {defaults.publisher!r}",
-        default=defaults.publisher,
+        help=f"Publisher name. Default: {Context.publisher!s}",
     )
 
     parser.add_argument(
         "--file-name",
         help="Custom file name format for individual ZIMs. "
-        f"Default: {defaults.file_name!r}",
-        default=defaults.file_name,
+        f"Default: {Context.file_name!s}",
     )
 
     parser.add_argument(
@@ -85,7 +66,6 @@ def add_zim_config_flags(parser: argparse.ArgumentParser, defaults: "ZimConfig")
         "--long-description",
         help="Long description of the ZIM. Value must not be longer than "
         f"{MAXIMUM_LONG_DESCRIPTION_METADATA_LENGTH} chars.",
-        default=defaults.long_description,
     )
 
     # Due to https://github.com/python/cpython/issues/60603 defaulting an array in
@@ -93,19 +73,14 @@ def add_zim_config_flags(parser: argparse.ArgumentParser, defaults: "ZimConfig")
     parser.add_argument(
         "--tags",
         help="A semicolon (;) delimited list of tags to add to the ZIM.",
-        default=defaults.tags,
+        type=lambda x: [tag.strip() for tag in x.split(";")],
     )
 
     parser.add_argument(
         "--secondary-color",
         help="Secondary (background) color of ZIM UI. Default: "
-        f"{defaults.secondary_color!r}",
-        default=defaults.secondary_color,
+        f"{Context.secondary_color!s}",
     )
-
-
-def add_content_filter_flags(parser: argparse.ArgumentParser):
-    """Adds flags related to content filtering to the given parser."""
 
     parser.add_argument(
         "--page-title-include",
@@ -113,7 +88,7 @@ def add_content_filter_flags(parser: argparse.ArgumentParser):
         "expression, and their parent pages for proper navigation, up to root (or "
         "subroot if --root-page-id is set). Can be combined with --page-id-include "
         "(pages with matching title or id will be included)",
-        metavar="REGEX",
+        type=lambda x: re.compile(x, re.IGNORECASE),
     )
 
     parser.add_argument(
@@ -122,24 +97,19 @@ def add_content_filter_flags(parser: argparse.ArgumentParser):
         "well for proper navigation, up to root (or subroot if --root-page-id is set). "
         "Can be combined with --page-title-include (pages with matching title or id "
         "will be included)",
+        type=lambda x: [page_id.strip() for page_id in x.split(",")],
     )
 
     parser.add_argument(
         "--page-title-exclude",
         help="Excludes pages with title matching the given regular expression",
-        metavar="REGEX",
+        type=lambda x: re.compile(x, re.IGNORECASE),
     )
 
     parser.add_argument(
         "--root-page-id",
         help="ID of the root page to include in ZIM. Only this page and its"
         " subpages will be included in the ZIM",
-    )
-
-
-def main(tmpdir: str) -> None:
-    parser = argparse.ArgumentParser(
-        prog=NAME,
     )
 
     parser.add_argument(
@@ -162,53 +132,43 @@ def main(tmpdir: str) -> None:
         "--overwrite",
         help="Do not fail if ZIM already exists, overwrite it",
         action="store_true",
-        default=False,
+        dest="overwrite_existing_zim",
     )
-
-    # ZIM configuration flags
-    add_zim_config_flags(parser, zim_defaults())
-
-    # Document selection flags
-    add_content_filter_flags(parser)
 
     parser.add_argument(
         "--output",
         help="Output folder for ZIMs. Default: /output",
-        default=os.getenv("MINDTOUCH_OUTPUT", "/output"),
+        type=Path,
         dest="output_folder",
     )
 
     parser.add_argument(
         "--tmp",
-        help="Temporary folder for cache, intermediate files, ... Default: tmp",
-        default=os.getenv("MINDTOUCH_TMP", tmpdir),
+        help="Temporary folder for cache, intermediate files, ...",
+        type=Path,
         dest="tmp_folder",
     )
 
-    parser.add_argument(
-        "--debug", help="Enable verbose output", action="store_true", default=False
-    )
+    parser.add_argument("--debug", help="Enable verbose output", action="store_true")
 
     parser.add_argument(
         "--zimui-dist",
-        type=str,
+        type=Path,
         help=(
             "Dev option to customize directory containing Vite build output from the "
             "ZIM UI Vue.JS application"
         ),
-        default=os.getenv("MINDTOUCH_ZIMUI_DIST", "../zimui/dist"),
     )
 
     parser.add_argument(
         "--stats-filename",
+        type=Path,
         help="Path to store the progress JSON file to.",
-        dest="stats_filename",
     )
 
     parser.add_argument(
         "--illustration-url",
         help="URL to illustration to use for ZIM illustration and favicon",
-        dest="illustration_url",
     )
 
     parser.add_argument(
@@ -220,16 +180,16 @@ def main(tmpdir: str) -> None:
     parser.add_argument(
         "--assets-workers",
         type=int,
-        help=("Number of parallel workers for asset processing (default: 10)"),
-        default=10,
-        dest="assets_workers",
+        help="Number of parallel workers for asset processing",
     )
 
     parser.add_argument(
         "--bad-assets-regex",
         help="Regular expression of asset URLs known to not be available. "
         "Case insensitive.",
-        dest="bad_assets_regex",
+        type=lambda x: re.compile(
+            f"{x}|{STANDARD_KNOWN_BAD_ASSETS_REGEX}", re.IGNORECASE
+        ),
     )
 
     parser.add_argument(
@@ -237,55 +197,29 @@ def main(tmpdir: str) -> None:
         type=int,
         help="[dev] Number of assets allowed to fail to download before failing the"
         " scraper. Assets already excluded with --bad-assets-regex are not counted for"
-        " this threshold. Defaults to 10 assets.",
-        default=10,
-        dest="bad_assets_threshold",
+        " this threshold.",
     )
 
-    args = parser.parse_args()
+    parser.add_argument(
+        "--contact-info",
+        help="Contact information to pass in User-Agent headers",
+    )
 
-    logger.setLevel(level=logging.DEBUG if args.debug else logging.INFO)
+    args = parser.parse_args(raw_args)
 
-    output_folder = Path(args.output_folder)
-    output_folder.mkdir(exist_ok=True)
-    validate_folder_writable(output_folder)
+    # Ignore unset values so they do not override the default specified in Context
+    args_dict = {key: value for key, value in args._get_kwargs() if value}
 
-    tmp_folder = Path(args.tmp_folder)
-    tmp_folder.mkdir(exist_ok=True)
-    validate_folder_writable(tmp_folder)
+    # initialize some context properties that are "dynamic" (i.e. not constant
+    # values like an int, a string, ...)
+    if not args_dict.get("tmp_folder", None):
+        if MINDTOUCH_TMP:
+            args_dict["tmp_folder"] = Path(MINDTOUCH_TMP)
+        else:
+            args_dict["tmp_folder"] = Path(tmpdir)
 
-    library_url = str(args.library_url).rstrip("/")
+    args_dict["cache_folder"] = args_dict["tmp_folder"] / "cache"
+    args_dict["web_session"] = get_session()
+    args_dict["_current_thread_workitem"] = threading.local()
 
-    try:
-        zim_config = ZimConfig.of(args)
-        doc_filter = ContentFilter.of(args)
-
-        cache_folder = tmp_folder / "cache"
-        cache_folder.mkdir(exist_ok=True)
-
-        mindtouch_client = MindtouchClient(
-            library_url=library_url,
-            cache_folder=cache_folder,
-        )
-
-        Processor(
-            mindtouch_client=mindtouch_client,
-            zim_config=zim_config,
-            output_folder=Path(args.output_folder),
-            zimui_dist=Path(args.zimui_dist),
-            content_filter=doc_filter,
-            stats_file=Path(args.stats_filename) if args.stats_filename else None,
-            overwrite_existing_zim=args.overwrite,
-            illustration_url=args.illustration_url,
-            s3_url_with_credentials=args.s3_url_with_credentials,
-            assets_workers=args.assets_workers,
-            bad_assets_regex=args.bad_assets_regex,
-            bad_assets_threshold=args.bad_assets_threshold,
-        ).run()
-    except SystemExit:
-        logger.error("Generation failed, exiting")
-        raise
-    except Exception as exc:
-        logger.exception(exc)
-        logger.error(f"Generation failed with the following error: {exc}")
-        raise SystemExit(1) from exc
+    Context.setup(**args_dict)

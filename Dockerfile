@@ -43,6 +43,7 @@ COPY --from=zimui /src/dist /src/zimui
 
 ENV MINDTOUCH_ZIMUI_DIST=/src/zimui \
     MINDTOUCH_OUTPUT=/output \
-    MINDTOUCH_TMP=/tmp
+    MINDTOUCH_TMP=/tmp\
+    MINDTOUCH_CONTACT_INFO=https://www.kiwix.org
 
 CMD ["mindtouch2zim", "--help"]
