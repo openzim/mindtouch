@@ -12,6 +12,7 @@ from mindtouch2zim.constants import (
     NAME,
     STANDARD_KNOWN_BAD_ASSETS_REGEX,
     VERSION,
+    logger,
 )
 
 MINDTOUCH_TMP = os.getenv("MINDTOUCH_TMP")
@@ -128,6 +129,7 @@ class Context:
     @current_thread_workitem.setter
     def current_thread_workitem(self, value: str):
         self._current_thread_workitem.value = value
+        logger.debug(f"Processing {value}")
 
     @property
     def wm_user_agent(self) -> str:

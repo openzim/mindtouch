@@ -143,7 +143,16 @@ class Processor:
 
         Returns the path to the gernated ZIM.
         """
+        try:
+            return self._run_internal()
+        except Exception:
+            logger.error(
+                f"Problem encountered while processing "
+                f"{context.current_thread_workitem}"
+            )
+            raise
 
+    def _run_internal(self) -> Path:
         logger.setLevel(level=logging.DEBUG if context.debug else logging.INFO)
 
         self.zim_config = ZimConfig(
@@ -273,7 +282,7 @@ class Processor:
 
     def run_with_creator(self, creator: Creator):
 
-        context.current_thread_workitem = "Storing standard files"
+        context.current_thread_workitem = "standard files"
 
         logger.info("  Storing configuration...")
         creator.add_item_for(
@@ -357,7 +366,7 @@ class Processor:
         )
 
         logger.info("Fetching pages tree")
-        context.current_thread_workitem = "Fetching pages tree"
+        context.current_thread_workitem = "pages tree"
         pages_tree = self.mindtouch_client.get_page_tree()
         selected_pages = self.content_filter.filter(pages_tree)
         logger.info(
@@ -377,7 +386,7 @@ class Processor:
         )
 
         logger.info("Fetching pages content")
-        context.current_thread_workitem = "Fetching pages content"
+        context.current_thread_workitem = "pages content"
         # compute the list of existing pages to properly rewrite links leading
         # in-ZIM / out-of-ZIM
         self.stats_items_total += len(selected_pages)
@@ -416,7 +425,7 @@ class Processor:
         del private_pages
 
         logger.info(f"  Retrieving {len(self.items_to_download)} assets...")
-        context.current_thread_workitem = "Processing assets"
+        context.current_thread_workitem = "assets"
         self.stats_items_total += len(self.items_to_download)
 
         res = self.asset_executor(
@@ -445,6 +454,7 @@ class Processor:
         """Process a given CSS stylesheet
         Download content if necessary, rewrite CSS and add CSS to ZIM
         """
+        context.current_thread_workitem = f"CSS at {css_location}"
         if not css_location:
             raise ValueError(f"Cannot process empty css_location for {target_filename}")
         if not css_content:
@@ -465,10 +475,15 @@ class Processor:
         # to use last URL encountered.
         for path, urls in url_rewriter.items_to_download.items():
             if path in self.items_to_download:
-                self.items_to_download[path].urls.update(urls)
+                self.items_to_download[path].asset_urls.update(urls)
+                self.items_to_download[path].used_by.add(
+                    context.current_thread_workitem
+                )
             else:
                 self.items_to_download[path] = AssetDetails(
-                    urls=urls, always_fetch_online=True
+                    asset_urls=urls,
+                    used_by={context.current_thread_workitem},
+                    always_fetch_online=True,
                 )
         creator.add_item_for(f"content/{target_filename}", content=result)
 
@@ -484,10 +499,7 @@ class Processor:
         """Process a given library page
         Download content, rewrite HTML and add JSON to ZIM
         """
-        logger.debug(f"  Fetching {page.id}")
-        context.current_thread_workitem = (
-            f"processing page {page.id} at {page.encoded_url}"
-        )
+        context.current_thread_workitem = f"page ID {page.id} ({page.encoded_url})"
         page_content = self.mindtouch_client.get_page_content(page)
         url_rewriter = HtmlUrlsRewriter(
             context.library_url,
@@ -528,7 +540,7 @@ class Processor:
                 # and since these pages are absolutely not essential, we just display a
                 # warning and store an empty page
                 logger.warning(
-                    f"Problem processing special page ID {page.id} ({page.encoded_url})"
+                    f"Problem processing special {context.current_thread_workitem}"
                     f", page is probably empty, storing empty page: {exc}"
                 )
                 return ""
@@ -536,11 +548,17 @@ class Processor:
             # Default rewriting for 'normal' pages
             rewriten = rewriter.rewrite(page_content.html_body).content
         for path, urls in url_rewriter.items_to_download.items():
+
             if path in self.items_to_download:
-                self.items_to_download[path].urls.update(urls)
+                self.items_to_download[path].asset_urls.update(urls)
+                self.items_to_download[path].used_by.add(
+                    context.current_thread_workitem
+                )
             else:
                 self.items_to_download[path] = AssetDetails(
-                    urls=urls, always_fetch_online=False
+                    asset_urls=urls,
+                    used_by={context.current_thread_workitem},
+                    always_fetch_online=False,
                 )
         creator.add_item_for(
             f"content/page_content_{page.id}.json",

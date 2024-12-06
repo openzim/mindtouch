@@ -49,8 +49,16 @@ class HeaderData(NamedTuple):
 
 
 class AssetDetails(NamedTuple):
-    urls: set[HttpUrl]
+    asset_urls: set[HttpUrl]
+    used_by: set[str]
     always_fetch_online: bool
+
+    @property
+    def get_usage_repr(self) -> str:
+        """Returns a representation of asset usage, typically for logs"""
+        if len(self.used_by) == 0:
+            return ""
+        return f' used by {", ".join(self.used_by)}'
 
 
 class AssetProcessor:
@@ -68,55 +76,47 @@ class AssetProcessor:
         asset_details: AssetDetails,
         creator: Creator,
     ):
-        logger.debug(f"Processing asset for {asset_path}")
-        context.current_thread_workitem = f"processing asset {asset_path}"
-        self._process_asset_internal(
-            asset_path=asset_path, asset_details=asset_details, creator=creator
-        )
-
-    def _process_asset_internal(
-        self,
-        asset_path: ZimPath,
-        asset_details: AssetDetails,
-        creator: Creator,
-    ):
-        for asset_url in asset_details.urls:
+        """Download and add to the ZIM a given asset (image, ...)"""
+        for asset_url in asset_details.asset_urls:
             try:
+                context.current_thread_workitem = (
+                    f"asset from {asset_url.value}{asset_details.get_usage_repr}"
+                )
                 asset_content = self.get_asset_content(
                     asset_path=asset_path,
                     asset_url=asset_url,
                     always_fetch_online=asset_details.always_fetch_online,
                 )
-                logger.debug(
-                    f"Adding {asset_url.value} to {asset_path.value} in the ZIM"
-                )
+                logger.debug(f"Adding asset to {asset_path.value} in the ZIM")
                 creator.add_item_for(
                     path="content/" + asset_path.value,
                     content=asset_content.getvalue(),
                 )
                 break  # file found and added
             except KnownBadAssetFailedError as exc:
-                logger.debug(f"Ignoring known bad asset for {asset_url.value}: {exc}")
-            except RequestException as exc:
+                logger.debug(f"Ignoring known bad asset: {exc}")
+            except Exception as exc:
+                # all other exceptions (not only RequestsException) lead to an increase
+                # of bad_assets_count, because we have no idea what could go wrong here
+                # and limit and bad assets threshold should be correct in production,
+                # or ignored at own user risk
                 with self.lock:
                     self.bad_assets_count += 1
+                    log_message = (
+                        "Exception while processing "
+                        f"{context.current_thread_workitem}: {exc}"
+                    )
                     if (
                         context.bad_assets_threshold >= 0
                         and self.bad_assets_count > context.bad_assets_threshold
                     ):
-                        logger.error(
-                            f"Exception while processing asset for {asset_url.value}: "
-                            f"{exc}"
-                        )
+                        logger.error(log_message)
                         raise OSError(  # noqa: B904
                             f"Asset failure threshold ({context.bad_assets_threshold}) "
                             "reached, stopping execution"
                         )
                     else:
-                        logger.warning(
-                            f"Exception while processing asset for {asset_url.value}: "
-                            f"{exc}"
-                        )
+                        logger.warning(log_message)
 
     def _get_header_data_for(self, url: HttpUrl) -> HeaderData:
         """Get details from headers for a given url
@@ -250,7 +250,8 @@ class AssetProcessor:
                         )
                     else:
                         logger.debug(
-                            f"Not optimizing, unsupported mime type: {mime_type}"
+                            f"Not optimizing, unsupported mime type: {mime_type} for "
+                            f"{context.current_thread_workitem}"
                         )
 
             return self._download_from_online(asset_url=asset_url)
@@ -262,7 +263,7 @@ class AssetProcessor:
             if context.bad_assets_regex and context.bad_assets_regex.findall(
                 asset_url.value
             ):
-                raise KnownBadAssetFailedError() from exc
+                raise KnownBadAssetFailedError(exc) from exc
             raise
 
     def _setup_s3(self):
