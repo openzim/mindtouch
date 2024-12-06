@@ -53,6 +53,7 @@ from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
 from mindtouch2zim.libretexts.detailed_licensing import rewrite_detailed_licensing
 from mindtouch2zim.libretexts.glossary import rewrite_glossary
 from mindtouch2zim.libretexts.index import rewrite_index
+from mindtouch2zim.libretexts.table_of_content import rewrite_table_of_content
 from mindtouch2zim.ui import (
     ConfigModel,
     PageContentModel,
@@ -254,6 +255,9 @@ class Processor:
         )
         self.libretexts_detailed_licensing_template = self.jinja2_env.get_template(
             "libretexts.detailed-licensing.html"
+        )
+        self.libretexts_table_of_content_template = self.jinja2_env.get_template(
+            "libretexts.table-of-content.html"
         )
 
         # Start creator early to detect problems early.
@@ -562,6 +566,20 @@ class Processor:
                     rewriten = rewrite_detailed_licensing(
                         rewriter=rewriter,
                         jinja2_template=self.libretexts_detailed_licensing_template,
+                        mindtouch_client=self.mindtouch_client,
+                        page=page,
+                    )
+                elif (
+                    "https://cdn.libretexts.net/github/LibreTextsMain/DynamicTOC/dist/dynamicTOC.min.js"
+                    in page_content.html_body
+                ):
+                    logger.debug(
+                        f"Rewriting {context.current_thread_workitem} as libretexts.org"
+                        " table of content"
+                    )
+                    rewriten = rewrite_table_of_content(
+                        rewriter=rewriter,
+                        jinja2_template=self.libretexts_table_of_content_template,
                         mindtouch_client=self.mindtouch_client,
                         page=page,
                     )

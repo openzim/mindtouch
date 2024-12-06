@@ -25,6 +25,11 @@ CONTEXT_DEFAULTS = {
 # initialize a context since it is a requirement for most modules to load
 Context.setup(**CONTEXT_DEFAULTS)
 
+context = Context.get()
+
+# import client late so that context is already initialized
+from mindtouch2zim.client import MindtouchClient  # noqa: E402
+
 
 @pytest.fixture(scope="module")
 def libretexts_slug() -> str:
@@ -66,3 +71,24 @@ def home_icons_urls() -> list[str]:
         "https://a.mtstatic.com/@public/production/site_4038/1486479235-apple-touch-icon.png",
         "https://a.mtstatic.com/@public/production/site_4038/1486479325-favicon.ico",
     ]
+
+
+@pytest.fixture(scope="module")
+def raw_client(libretexts_url: str, cache_folder: Path) -> MindtouchClient:
+    context.library_url = libretexts_url
+    context.cache_folder = cache_folder
+    return MindtouchClient()
+
+
+@pytest.fixture(scope="module")
+def client(
+    raw_client: MindtouchClient,
+    deki_token: str,  # noqa: ARG001
+) -> MindtouchClient:
+    """already authenticated client (avoid having to fetch deki_token in tests)"""
+    return raw_client
+
+
+@pytest.fixture(scope="module")
+def deki_token(raw_client: MindtouchClient) -> str:
+    return raw_client.get_deki_token()
