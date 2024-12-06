@@ -362,12 +362,11 @@ class MindtouchClient:
                 or "coverpage:nocommons" in current_definition.tags
             ):
                 return current_page
-            if "article:topic-category" in current_definition.tags:
+            if (
+                "article:topic-category" in current_definition.tags
+                or current_page.parent is None
+            ):
                 return None
-            if current_page.parent is None:
-                raise MindtouchParsingError(
-                    f"No more parent for {page.id}, reached root at {current_page.id}"
-                )
             current_page = current_page.parent
 
     def _get_cover_page_from_str_id(self, page_id: str) -> str | None:
@@ -390,12 +389,11 @@ class MindtouchClient:
                 or "coverpage:nocommons" in current_definition.tags
             ):
                 return current_page
-            if "article:topic-category" in current_definition.tags:
+            if (
+                "article:topic-category" in current_definition.tags
+                or current_definition.parent_id is None
+            ):
                 return None
-            if current_definition.parent_id is None:
-                raise MindtouchParsingError(
-                    f"No more parent for {page_id}, reached root at {current_page}"
-                )
             current_page = current_definition.parent_id
 
     def get_cover_page_encoded_url(self, page: LibraryPage) -> str | None:

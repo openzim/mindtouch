@@ -1,8 +1,10 @@
 import math
+import mimetypes
 import threading
 from functools import partial
 from io import BytesIO
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 import backoff
 from kiwixstorage import KiwixStorage, NotFoundError
@@ -55,6 +57,7 @@ class AssetDetails(NamedTuple):
     asset_urls: set[HttpUrl]
     used_by: set[str]
     always_fetch_online: bool
+    kind: str | None
 
     @property
     def get_usage_repr(self) -> str:
@@ -62,6 +65,60 @@ class AssetDetails(NamedTuple):
         if len(self.used_by) == 0:
             return ""
         return f' used by {", ".join(self.used_by)}'
+
+
+class AssetManager:
+    """Class responsible to manage a list of assets to download"""
+
+    def __init__(self) -> None:
+        self.assets: dict[ZimPath, AssetDetails] = {}
+
+    def add_asset(
+        self,
+        asset_path: ZimPath,
+        asset_url: HttpUrl,
+        used_by: str,
+        kind: str | None,
+        *,
+        always_fetch_online: bool,
+    ):
+        """Add a new asset to download
+
+        asset_path: target path inside the ZIM
+        asset_url: URL where the asset can be downloaded
+        used_by: string explaining (mostly for debug purposes) where the asset is used
+          (typically on which page)
+        kind: kind of asset if we know it ; for instance "img" is used to not rely only
+          on returned mime type to decide if we should optimize it or not
+        always_fetch_online: if False, the asset may be cached on S3 ; if True, it is
+          always fetch online
+        """
+        if asset_path not in self.assets:
+            self.assets[asset_path] = AssetDetails(
+                asset_urls={asset_url},
+                used_by={used_by},
+                kind=kind,
+                always_fetch_online=always_fetch_online,
+            )
+            return
+        current_asset = self.assets[asset_path]
+        if current_asset.kind != kind:
+            logger.warning(
+                f"Conflicting kind found for asset at {asset_path} already used by "
+                f"{current_asset.get_usage_repr}; current kind is "
+                f"'{current_asset.kind}';new kind '{kind}' from {asset_url} used by "
+                f"{used_by} will be ignored"
+            )
+        if current_asset.always_fetch_online != always_fetch_online:
+            logger.warning(
+                f"Conflicting always_fetch_online found for asset at {asset_path} "
+                f"already used by {current_asset.get_usage_repr}; current "
+                f"always_fetch_online is '{current_asset.always_fetch_online}';"
+                f"new always_fetch_online '{always_fetch_online}' from {asset_url} used"
+                f" by {used_by} will be ignored"
+            )
+        current_asset.used_by.add(used_by)
+        current_asset.asset_urls.add(asset_url)
 
 
 class AssetProcessor:
@@ -89,6 +146,7 @@ class AssetProcessor:
                     asset_path=asset_path,
                     asset_url=asset_url,
                     always_fetch_online=asset_details.always_fetch_online,
+                    kind=asset_details.kind,
                 )
                 logger.debug(f"Adding asset to {asset_path.value} in the ZIM")
                 creator.add_item_for(
@@ -161,8 +219,9 @@ class AssetProcessor:
 
         if context.s3_url_with_credentials:
             if s3_data := self._download_from_s3_cache(s3_key=s3_key, meta=meta):
-                logger.debug("Fetching directly from S3 cache")
-                return s3_data  # found in cache
+                if len(s3_data.getvalue()) > 0:
+                    logger.debug("Fetched directly from S3 cache")
+                    return s3_data  # found in cache
 
         logger.debug("Fetching from online")
         unoptimized = self._download_from_online(asset_url=asset_url)
@@ -243,6 +302,23 @@ class AssetProcessor:
         )
         return asset_content
 
+    def _get_mime_type(
+        self,
+        header_data: HeaderData,
+        asset_url: HttpUrl,
+        kind: str | None,
+    ) -> str | None:
+        if header_data.content_type:
+            mime_type = header_data.content_type.split(";")[0].strip()
+        else:
+            mime_type = None
+        if (
+            mime_type is None or mime_type == "application/octet-stream"
+        ) and kind == "img":
+            # try to source mime_type from file extension
+            mime_type, _ = mimetypes.guess_type(urlsplit(asset_url.value).path)
+        return mime_type
+
     @backoff.on_exception(
         partial(backoff.expo, base=3, factor=2),
         RequestException,
@@ -250,26 +326,32 @@ class AssetProcessor:
         on_backoff=backoff_hdlr,
     )
     def get_asset_content(
-        self, asset_path: ZimPath, asset_url: HttpUrl, *, always_fetch_online: bool
+        self,
+        asset_path: ZimPath,
+        asset_url: HttpUrl,
+        kind: str | None,
+        *,
+        always_fetch_online: bool,
     ) -> BytesIO:
         """Download of a given asset, optimize if needed, or download from S3 cache"""
 
         try:
             if not always_fetch_online:
                 header_data = self._get_header_data_for(asset_url)
-                if header_data.content_type:
-                    mime_type = header_data.content_type.split(";")[0].strip()
-                    if mime_type in SUPPORTED_IMAGE_MIME_TYPES:
-                        return self._get_image_content(
-                            asset_path=asset_path,
-                            asset_url=asset_url,
-                            header_data=header_data,
-                        )
-                    else:
-                        logger.debug(
-                            f"Not optimizing, unsupported mime type: {mime_type} for "
-                            f"{context.current_thread_workitem}"
-                        )
+                mime_type = self._get_mime_type(
+                    header_data=header_data, asset_url=asset_url, kind=kind
+                )
+                if mime_type and mime_type in SUPPORTED_IMAGE_MIME_TYPES:
+                    return self._get_image_content(
+                        asset_path=asset_path,
+                        asset_url=asset_url,
+                        header_data=header_data,
+                    )
+                else:
+                    logger.debug(
+                        f"Not optimizing, unsupported mime type: {mime_type} for "
+                        f"{context.current_thread_workitem}"
+                    )
 
             return self._download_from_online(asset_url=asset_url)
         except RequestException as exc:

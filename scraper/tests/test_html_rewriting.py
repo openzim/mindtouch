@@ -5,6 +5,7 @@ from zimscraperlib.rewriting.url_rewriting import (
     ZimPath,
 )
 
+from mindtouch2zim.asset import AssetDetails, AssetManager
 from mindtouch2zim.client import LibraryPage
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
 
@@ -23,6 +24,7 @@ def url_rewriter() -> HtmlUrlsRewriter:
             ZimPath("www.acme.com/existing.html"),
             ZimPath("www.acme.com/existing.html?foo=bar"),
         },
+        asset_manager=AssetManager(),
     )
 
 
@@ -40,9 +42,12 @@ def html_rewriter(url_rewriter: HtmlUrlsRewriter) -> HtmlRewriter:
             '<img src="https://www.foo.bar/image1.png"></img>',
             '<img src="content/www.foo.bar/image1.png"></img>',
             {
-                ZimPath("www.foo.bar/image1.png"): {
-                    HttpUrl("https://www.foo.bar/image1.png")
-                }
+                ZimPath("www.foo.bar/image1.png"): AssetDetails(
+                    asset_urls={HttpUrl("https://www.foo.bar/image1.png")},
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="simple",
         ),
@@ -51,9 +56,12 @@ def html_rewriter(url_rewriter: HtmlUrlsRewriter) -> HtmlRewriter:
             'srcset="https://www.foo.bar/image2.png"></img>',
             '<img src="content/www.foo.bar/image2.png"></img>',
             {
-                ZimPath("www.foo.bar/image2.png"): {
-                    HttpUrl("https://www.foo.bar/image2.png")
-                }
+                ZimPath("www.foo.bar/image2.png"): AssetDetails(
+                    asset_urls={HttpUrl("https://www.foo.bar/image2.png")},
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="simple_srcset",
         ),
@@ -61,9 +69,12 @@ def html_rewriter(url_rewriter: HtmlUrlsRewriter) -> HtmlRewriter:
             '<img srcset="https://www.foo.bar/image2.png 1024w"></img>',
             '<img src="content/www.foo.bar/image2.png"></img>',
             {
-                ZimPath("www.foo.bar/image2.png"): {
-                    HttpUrl("https://www.foo.bar/image2.png")
-                }
+                ZimPath("www.foo.bar/image2.png"): AssetDetails(
+                    asset_urls={HttpUrl("https://www.foo.bar/image2.png")},
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="simple_srcset_no_src",
         ),
@@ -72,9 +83,12 @@ def html_rewriter(url_rewriter: HtmlUrlsRewriter) -> HtmlRewriter:
             'https://www.foo.bar/image2.png 1024w"></img>',
             '<img src="content/www.foo.bar/image2.png"></img>',
             {
-                ZimPath("www.foo.bar/image2.png"): {
-                    HttpUrl("https://www.foo.bar/image2.png")
-                }
+                ZimPath("www.foo.bar/image2.png"): AssetDetails(
+                    asset_urls={HttpUrl("https://www.foo.bar/image2.png")},
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="simple_srcset_2_no_src",
         ),
@@ -86,9 +100,12 @@ def html_rewriter(url_rewriter: HtmlUrlsRewriter) -> HtmlRewriter:
             'alt="Image"></img>',
             '<img alt="Image" src="content/www.foo.bar/ima%20ge2.png"></img>',
             {
-                ZimPath("www.foo.bar/ima ge2.png"): {
-                    HttpUrl("https://www.foo.bar/ima ge2.png")
-                }
+                ZimPath("www.foo.bar/ima ge2.png"): AssetDetails(
+                    asset_urls={HttpUrl("https://www.foo.bar/ima ge2.png")},
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="simple_srcset_2",
         ),
@@ -104,7 +121,7 @@ def test_html_img_rewriting(
     rewritten = html_rewriter.rewrite(source_html)
     assert rewritten.content == expected_html
     assert rewritten.title == ""
-    assert url_rewriter.items_to_download == expected_items_to_download
+    assert url_rewriter.asset_manager.assets == expected_items_to_download
 
 
 @pytest.mark.parametrize(
@@ -125,7 +142,14 @@ def test_html_img_rewriting(
             {
                 ZimPath(
                     "i.ytimg.com.fuzzy.replayweb.page/vi/sQaEthBmZB0/thumbnail.jpg"
-                ): {HttpUrl("https://i.ytimg.com/vi/sQaEthBmZB0/hqdefault.jpg")}
+                ): AssetDetails(
+                    asset_urls={
+                        HttpUrl("https://i.ytimg.com/vi/sQaEthBmZB0/hqdefault.jpg")
+                    },
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="youtube",
         ),
@@ -147,13 +171,18 @@ def test_html_img_rewriting(
                     "i.vimeocdn.com/video/553546340-"
                     "35aa6d23b04e9bdaf254c3cfc4da56bcfd7ff3f75a517c485536082edbf547dd-"
                     "d_640"
-                ): {
-                    HttpUrl(
-                        "https://i.vimeocdn.com/video/553546340-"
-                        "35aa6d23b04e9bdaf254c3cfc4da56bcfd7ff3f75a517c485536082e"
-                        "dbf547dd-d_640"
-                    )
-                }
+                ): AssetDetails(
+                    asset_urls={
+                        HttpUrl(
+                            "https://i.vimeocdn.com/video/553546340-"
+                            "35aa6d23b04e9bdaf254c3cfc4da56bcfd7ff3f75a517c485536082e"
+                            "dbf547dd-d_640"
+                        )
+                    },
+                    used_by={"startup"},
+                    always_fetch_online=False,
+                    kind="img",
+                )
             },
             id="vimeo",
         ),
@@ -194,7 +223,7 @@ def test_html_iframe_rewriting(
     rewritten = html_rewriter.rewrite(source_html)
     assert rewritten.content == expected_html
     assert rewritten.title == ""
-    assert url_rewriter.items_to_download == expected_items_to_download
+    assert url_rewriter.asset_manager.assets == expected_items_to_download
 
 
 @pytest.mark.parametrize(
@@ -311,4 +340,4 @@ def test_html_href_rewriting(
     rewritten = html_rewriter.rewrite(source_html)
     assert rewritten.content == expected_html
     assert rewritten.title == ""
-    assert url_rewriter.items_to_download == expected_items_to_download
+    assert url_rewriter.asset_manager.assets == expected_items_to_download
