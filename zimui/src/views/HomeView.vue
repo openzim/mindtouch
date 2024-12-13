@@ -71,7 +71,9 @@ watch(
         v-if="main.pageContent"
         v-html="main.pageContent.htmlBody"
       ></section>
-      <div v-else>Page not found</div>
+      <div v-else-if="main.isLoading">Page loading ...</div>
+      <!-- We do not display HomeView when error occured, so message below is never shown -->
+      <div v-else>No page loaded, problem occured, please try to reload.</div>
     </article>
   </main>
 </template>
