@@ -1,8 +1,8 @@
-from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
 from mindtouch2zim.errors import VimeoThumbnailError
 
 context = Context.get()
+logger = context.logger
 
 
 def get_vimeo_thumbnail_url(video_url: str) -> str:

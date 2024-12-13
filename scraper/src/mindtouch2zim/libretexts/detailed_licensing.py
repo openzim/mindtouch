@@ -5,11 +5,11 @@ from pydantic import BaseModel
 from zimscraperlib.rewriting.html import HtmlRewriter
 
 from mindtouch2zim.client import LibraryPage, MindtouchClient
-from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
 from mindtouch2zim.libretexts.errors import BadBookPageError
 
 context = Context.get()
+logger = context.logger
 
 
 class LicenseStatistic(BaseModel):
