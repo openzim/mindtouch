@@ -248,8 +248,10 @@ def test_html_iframe_rewriting(
 </video>""",
             """<video class="mt-media" controls="controls" preload="auto">
   <source src="" type="video/mp4" />
-  <embed class="mt-media" src="" autoplay="False" autostart="False" scale="tofit" """
-            """wmode="opaque" allowfullscreen="true" />
+  This content is not inside the ZIM. View content online at """
+            '<a href="https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4"'
+            ' target="_blank">https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4</a>'
+            """
 </video>""",
             id="video_src",
         ),
@@ -272,6 +274,33 @@ def test_html_iframe_rewriting(
     ],
 )
 def test_html_unknown_src_href_rewriting(
+    html_rewriter: HtmlRewriter, source_html: str, expected_html: str
+):
+    assert html_rewriter.rewrite(source_html).content == expected_html
+
+
+@pytest.mark.parametrize(
+    "source_html, expected_html",
+    [
+        pytest.param(
+            """<embed
+    class="mt-media"
+    src="https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4"
+    autoplay="False"
+    autostart="False"
+    scale="tofit"
+    wmode="opaque"
+    allowfullscreen="true"
+  />""",
+            "This content is not inside the ZIM. View content online at "
+            '<a href="https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4"'
+            ' target="_blank">https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003658/thermohaline_conveyor_30fps.mp4'
+            "</a>",
+            id="embed_src",
+        ),
+    ],
+)
+def test_html_embed_rewriting(
     html_rewriter: HtmlRewriter, source_html: str, expected_html: str
 ):
     assert html_rewriter.rewrite(source_html).content == expected_html

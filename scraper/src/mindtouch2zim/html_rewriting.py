@@ -251,3 +251,27 @@ def rewrite_img_tags(
         + [("src", new_attr_value)]
     )
     return f"<img {values}{'/>' if auto_close else '>'}"
+
+
+@html_rules.rewrite_tag()
+def rewrite_embed_tags(
+    tag: str,
+    attrs: AttrsList,
+    *,
+    auto_close: bool,
+):
+
+    if tag != "embed":
+        return
+    if not (src_value := get_attr_value_from(attrs, "src")):
+        return  # no need to rewrite this embed without src
+
+    # There is 99% chance the embed src is not inside the ZIM, so we assume it is not
+    # (we can't know anyway with current software architecture)
+    return (
+        "This content is not inside the ZIM. "
+        f'View content online at <a href="{src_value}" target="_blank">'
+        f"{src_value}"
+        "</a>"
+        f'{ "" if auto_close else "<embed>"}'
+    )
