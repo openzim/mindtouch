@@ -11,14 +11,14 @@ dependencies = [
   # use zimscraperlib pinned version once content rewriting functions have been released
   "zimscraperlib @ git+https://github.com/openzim/python-scraperlib@main",
   "requests==2.32.3",
-  "types-requests==2.32.0.20240914",
+  "types-requests==2.32.0.20241016",
   "kiwixstorage==0.9.0",
-  "pydantic==2.9.1",
+  "pydantic==2.10.3",
   "schedule==1.2.2",
   "beautifulsoup4==4.12.3",
-  "types-beautifulsoup4==4.12.0.20240907",
+  "types-beautifulsoup4==4.12.0.20241020",
   "lxml==5.3.0",
-  "tinycss2==1.3.0",
+  "tinycss2==1.4.0",
   "pif==0.8.2",
   "backoff==2.2.1",
   "joblib==1.4.2",
@@ -37,12 +37,12 @@ additional-keywords = ["mindouch", "nice", "cxone", "expert"]
 
 [project.optional-dependencies]
 scripts = ["invoke==2.2.0"]
-lint = ["black==24.8.0", "ruff==0.6.4"]
-check = ["pyright==1.1.380"]
-test = ["pytest==8.3.3", "coverage==7.6.1"]
+lint = ["black==24.10.0", "ruff==0.8.3"]
+check = ["pyright==1.1.390"]
+test = ["pytest==8.3.4", "coverage==7.6.9"]
 dev = [
-  "pre-commit==3.8.0",
-  "debugpy==1.8.5",
+  "pre-commit==4.0.1",
+  "debugpy==1.8.11",
   "mindtouch2zim[scripts]",
   "mindtouch2zim[lint]",
   "mindtouch2zim[test]",

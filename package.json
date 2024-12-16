@@ -1,8 +1,0 @@
-{
-  "devDependencies": {
-    "@vitejs/plugin-legacy": "^5.4.2"
-  },
-  "dependencies": {
-    "resize-observer-polyfill": "^1.5.1"
-  }
-}
