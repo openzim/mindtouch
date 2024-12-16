@@ -2,7 +2,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from mindtouch2zim.constants import logger
+from mindtouch2zim.context import Context
+
+context = Context.get()
+logger = context.logger
 
 
 def get_asset_path_from_url(online_url: str, already_used_paths: list[Path]) -> Path:

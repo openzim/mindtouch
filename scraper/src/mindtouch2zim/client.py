@@ -7,12 +7,12 @@ from bs4 import BeautifulSoup, NavigableString
 from pydantic import BaseModel
 from requests import Response
 
-from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
 from mindtouch2zim.errors import APITokenRetrievalError, MindtouchParsingError
 from mindtouch2zim.html import get_soup
 
 context = Context.get()
+logger = context.logger
 
 
 class MindtouchHome(BaseModel):

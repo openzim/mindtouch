@@ -1,8 +1,10 @@
 import sys
 import tempfile
 
-from mindtouch2zim.constants import logger
+from mindtouch2zim.context import Context
 from mindtouch2zim.entrypoint import prepare_context
+
+logger = Context.logger
 
 
 def main():

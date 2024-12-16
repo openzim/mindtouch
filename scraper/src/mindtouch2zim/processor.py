@@ -43,7 +43,6 @@ from mindtouch2zim.constants import (
     NAME,
     ROOT_DIR,
     VERSION,
-    logger,
 )
 from mindtouch2zim.context import Context
 from mindtouch2zim.download import stream_file
@@ -64,6 +63,7 @@ from mindtouch2zim.utils import backoff_hdlr
 from mindtouch2zim.zimconfig import ZimConfig
 
 context = Context.get()
+logger = context.logger
 
 
 class ContentFilter(BaseModel):

@@ -17,7 +17,6 @@ from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
 from zimscraperlib.zim import Creator
 
-from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
 from mindtouch2zim.download import stream_file
 from mindtouch2zim.errors import (
@@ -46,6 +45,7 @@ SUPPORTED_IMAGE_MIME_TYPES = {
 WEBP_OPTIONS = WebpMedium().options
 
 context = Context.get()
+logger = context.logger
 
 
 class HeaderData(NamedTuple):

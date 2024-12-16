@@ -15,12 +15,12 @@ from zimscraperlib.rewriting.url_rewriting import (
 
 from mindtouch2zim.asset import AssetManager
 from mindtouch2zim.client import LibraryPage
-from mindtouch2zim.constants import logger
 from mindtouch2zim.context import Context
 from mindtouch2zim.utils import is_better_srcset_descriptor
 from mindtouch2zim.vimeo import get_vimeo_thumbnail_url
 
 context = Context.get()
+logger = context.logger
 
 # remove all standard rules, they are not adapted to Vue.JS UI
 html_rules.rewrite_attribute_rules.clear()

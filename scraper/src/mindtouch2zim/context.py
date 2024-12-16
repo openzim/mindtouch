@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 import os
 import re
 import threading
@@ -7,12 +8,12 @@ from pathlib import Path
 import requests
 from zimscraperlib.constants import NAME as SCRAPERLIB_NAME
 from zimscraperlib.constants import VERSION as SCRAPERLIB_VERSION
+from zimscraperlib.logging import DEFAULT_FORMAT_WITH_THREADS, getLogger
 
 from mindtouch2zim.constants import (
     NAME,
     STANDARD_KNOWN_BAD_ASSETS_REGEX,
     VERSION,
-    logger,
 )
 
 MINDTOUCH_TMP = os.getenv("MINDTOUCH_TMP")
@@ -106,6 +107,12 @@ class Context:
     # Maximum number of pixels of images that will be pushed to the ZIM
     maximum_image_pixels: int = 1280 * 720
 
+    # logger to use everywhere (do not mind about mutability, we want to reuse same
+    # logger everywhere)
+    logger: logging.Logger = getLogger(  # noqa: RUF009
+        NAME, level=logging.DEBUG, log_format=DEFAULT_FORMAT_WITH_THREADS
+    )
+
     @classmethod
     def setup(cls, **kwargs):
         new_instance = cls(**kwargs)
@@ -132,7 +139,7 @@ class Context:
     @current_thread_workitem.setter
     def current_thread_workitem(self, value: str):
         self._current_thread_workitem.value = value
-        logger.debug(f"Processing {value}")
+        Context.logger.debug(f"Processing {value}")
 
     @property
     def wm_user_agent(self) -> str:

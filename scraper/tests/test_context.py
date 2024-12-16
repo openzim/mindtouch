@@ -11,6 +11,11 @@ def context_defaults():
     return CONTEXT_DEFAULTS
 
 
+def test_context_logger():
+    # ensure we have only one logger object everywhere
+    assert Context.logger == Context.get().logger
+
+
 def test_context_defaults():
     context = Context.get()
     assert context == processor_context  # check both objects are same
