@@ -12,7 +12,7 @@ const main = useMainStore()
 onMounted(async () => {
   try {
     await main.fetchShared()
-  } catch (error) {
+  } catch {
     main.setErrorMessage('An unexpected error occured.')
   }
 })
