@@ -24,7 +24,7 @@ from zimscraperlib.rewriting.url_rewriting import (
     RewriteResult,
     ZimPath,
 )
-from zimscraperlib.zim import Creator
+from zimscraperlib.zim import Creator, metadata
 from zimscraperlib.zim.filesystem import (
     validate_file_creatable,
     validate_folder_writable,
@@ -229,18 +229,36 @@ class Processor:
 
         logger.debug("Configuring metadata")
         creator.config_metadata(
-            Name=self.formatted_config.name,
-            Title=self.formatted_config.title,
-            Publisher=self.formatted_config.publisher,
-            Date=datetime.datetime.now(tz=datetime.UTC).date(),
-            Creator=self.formatted_config.creator,
-            Description=self.formatted_config.description,
-            LongDescription=self.formatted_config.long_description,
-            # As of 2024-09-4 all documentation is in English.
-            Language=context.language_iso_639_3,
-            Tags=self.formatted_config.tags,
-            Scraper=f"{NAME} v{VERSION}",
-            Illustration_48x48_at_1=zim_illustration.getvalue(),
+            metadata.StandardMetadataList(
+                Name=metadata.NameMetadata(self.formatted_config.name),
+                Title=metadata.TitleMetadata(self.formatted_config.title),
+                Publisher=metadata.PublisherMetadata(self.formatted_config.publisher),
+                Date=metadata.DateMetadata(
+                    datetime.datetime.now(tz=datetime.UTC).date()
+                ),
+                Creator=metadata.CreatorMetadata(self.formatted_config.creator),
+                Description=metadata.DescriptionMetadata(
+                    self.formatted_config.description
+                ),
+                LongDescription=(
+                    metadata.LongDescriptionMetadata(
+                        self.formatted_config.long_description
+                    )
+                    if self.formatted_config.long_description
+                    else None
+                ),
+                # As of 2024-09-4 all documentation is in English.
+                Language=metadata.LanguageMetadata(context.language_iso_639_3),
+                Tags=(
+                    metadata.TagsMetadata(self.formatted_config.tags)
+                    if self.formatted_config.tags
+                    else None
+                ),
+                Scraper=metadata.ScraperMetadata(f"{NAME} v{VERSION}"),
+                Illustration_48x48_at_1=metadata.DefaultIllustrationMetadata(
+                    zim_illustration.getvalue()
+                ),
+            ),
         )
 
         # jinja2 environment setup
