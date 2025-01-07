@@ -242,14 +242,7 @@ class AssetProcessor:
                 ).save(optimized, format="WEBP")
         del unoptimized
 
-        optimize_webp(
-            src=optimized,
-            quality=WEBP_OPTIONS.get("quality"),  # pyright: ignore[reportArgumentType]
-            method=WEBP_OPTIONS.get("method"),  # pyright: ignore[reportArgumentType]
-            lossless=WEBP_OPTIONS.get(
-                "lossless"
-            ),  # pyright: ignore[reportArgumentType]
-        )
+        optimize_webp(src=optimized, options=WEBP_OPTIONS)
 
         if context.s3_url_with_credentials:
             # upload optimized to S3
