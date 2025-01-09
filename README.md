@@ -72,9 +72,6 @@ There are three main ways to install and use `mindtouch2zim` from most recommend
 
 ## Usage
 
-> [!WARNING]
-> This project is still a work in progress and isn't ready for use yet, the commands below are examples only.
-
 ```sh
 # Get help
 docker run -v output:/output ghcr.io/openzim/mindtouch mindtouch2zim --help

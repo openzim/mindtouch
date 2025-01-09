@@ -3,7 +3,7 @@ import pytest
 from mindtouch2zim.client import (
     _get_welcome_text_from_home,  # pyright: ignore[reportPrivateUsage]
 )
-from mindtouch2zim.html import get_soup
+from mindtouch2zim.html_utils import get_soup
 
 
 @pytest.mark.parametrize(

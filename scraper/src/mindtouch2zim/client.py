@@ -9,7 +9,7 @@ from requests import Response
 
 from mindtouch2zim.context import Context
 from mindtouch2zim.errors import APITokenRetrievalError, MindtouchParsingError
-from mindtouch2zim.html import get_soup
+from mindtouch2zim.html_utils import get_soup
 
 context = Context.get()
 logger = context.logger
