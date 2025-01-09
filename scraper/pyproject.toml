@@ -12,7 +12,7 @@ dependencies = [
   "requests==2.32.3",
   "types-requests==2.32.0.20241016",
   "kiwixstorage==0.9.0",
-  "pydantic==2.10.3",
+  "pydantic==2.10.5",
   "schedule==1.2.2",
   "beautifulsoup4==4.12.3",
   "types-beautifulsoup4==4.12.0.20241020",
@@ -21,7 +21,7 @@ dependencies = [
   "pif==0.8.2",
   "backoff==2.2.1",
   "joblib==1.4.2",
-  "Jinja2==3.1.4",
+  "Jinja2==3.1.5",
 ]
 dynamic = ["authors", "classifiers", "keywords", "license", "version", "urls"]
 
@@ -33,9 +33,9 @@ additional-keywords = ["mindouch", "nice", "cxone", "expert"]
 
 [project.optional-dependencies]
 scripts = ["invoke==2.2.0"]
-lint = ["black==24.10.0", "ruff==0.8.3"]
-check = ["pyright==1.1.390"]
-test = ["pytest==8.3.4", "coverage==7.6.9"]
+lint = ["black==24.10.0", "ruff==0.9.0"]
+check = ["pyright==1.1.391"]
+test = ["pytest==8.3.4", "coverage==7.6.10"]
 dev = [
   "pre-commit==4.0.1",
   "debugpy==1.8.11",
