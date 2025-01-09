@@ -327,7 +327,10 @@ class MindtouchClient:
         if raw_tag is None:
             raise MindtouchParsingError(f"No tag property for page {page_id}")
         if isinstance(raw_tag, list):
-            tags = [item.get("@value") for item in raw_tag]
+            tags: list[Any] = [
+                item.get("@value")  # pyright: ignore[reportUnknownMemberType]
+                for item in raw_tag  # pyright: ignore[reportUnknownVariableType]
+            ]
         else:
             tags = [raw_tag.get("@value")]
 

@@ -5,10 +5,14 @@ import re
 from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 import backoff
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from joblib import Parallel, delayed
+from joblib import (  # pyright: ignore[reportMissingTypeStubs]
+    Parallel,
+    delayed,  # pyright: ignore[reportUnknownVariableType]
+)
 from pydantic import BaseModel
 from requests import RequestException
 from requests.exceptions import HTTPError
@@ -462,7 +466,7 @@ class Processor:
         context.current_thread_workitem = "assets"
         self.stats_items_total += len(self.asset_manager.assets)
 
-        res = self.asset_executor(
+        res: Any = self.asset_executor(
             delayed(self.asset_processor.process_asset)(
                 asset_path, asset_details, creator
             )

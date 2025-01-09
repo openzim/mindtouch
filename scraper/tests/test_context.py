@@ -1,3 +1,6 @@
+import re
+from typing import Any
+
 import pytest
 
 from mindtouch2zim.context import Context
@@ -20,15 +23,15 @@ def test_context_defaults():
     context = Context.get()
     assert context == processor_context  # check both objects are same
     assert context.assets_workers == 10
-    assert (  # check getter logic
-        context.wm_user_agent
-        == "mindtouch2zim/0.1.0-dev0 (https://www.kiwix.org) zimscraperlib/5.0.0-dev0"
+    assert re.match(  # check getter logic
+        r"mindtouch2zim\/.* \(https:\/\/www\.kiwix\.org\) zimscraperlib\/.*",
+        context.wm_user_agent,
     )
     context.current_thread_workitem = "context 123"
     assert context.current_thread_workitem == "context 123"
 
 
-def test_context_setup_again(context_defaults):
+def test_context_setup_again(context_defaults: dict[str, Any]):
     settings = context_defaults.copy()
     settings["title"] = "A title"
     Context.setup(**settings)

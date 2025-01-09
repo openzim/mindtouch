@@ -7,11 +7,16 @@ from typing import NamedTuple
 from urllib.parse import urlsplit
 
 import backoff
-from kiwixstorage import KiwixStorage, NotFoundError
-from pif import get_public_ip
+from kiwixstorage import (  # pyright: ignore[reportMissingTypeStubs]
+    KiwixStorage,
+    NotFoundError,
+)
+from pif import (  # pyright: ignore[reportMissingTypeStubs]
+    get_public_ip,  # pyright: ignore[reportUnknownVariableType]
+)
 from PIL import Image
 from requests.exceptions import RequestException
-from resizeimage import resizeimage
+from resizeimage import resizeimage  # pyright: ignore[reportMissingTypeStubs]
 from zimscraperlib.image.optimization import optimize_webp
 from zimscraperlib.image.presets import WebpMedium
 from zimscraperlib.rewriting.url_rewriting import HttpUrl, ZimPath
@@ -232,7 +237,7 @@ class AssetProcessor:
             if image.width * image.height <= context.maximum_image_pixels:
                 image.save(optimized, format="WEBP")
             else:
-                resizeimage.resize_width(
+                resizeimage.resize_width(  # pyright: ignore[reportUnknownMemberType]
                     image,
                     int(
                         math.sqrt(
@@ -242,14 +247,7 @@ class AssetProcessor:
                 ).save(optimized, format="WEBP")
         del unoptimized
 
-        optimize_webp(
-            src=optimized,
-            quality=WEBP_OPTIONS.get("quality"),  # pyright: ignore[reportArgumentType]
-            method=WEBP_OPTIONS.get("method"),  # pyright: ignore[reportArgumentType]
-            lossless=WEBP_OPTIONS.get(
-                "lossless"
-            ),  # pyright: ignore[reportArgumentType]
-        )
+        optimize_webp(src=optimized, options=WEBP_OPTIONS)
 
         if context.s3_url_with_credentials:
             # upload optimized to S3

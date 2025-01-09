@@ -1,7 +1,6 @@
 from typing import Any
 
 from jinja2 import Template
-from pydantic import BaseModel
 from zimscraperlib.rewriting.html import HtmlRewriter
 
 from mindtouch2zim.client import LibraryPage, MindtouchClient
@@ -10,27 +9,6 @@ from mindtouch2zim.libretexts.errors import BadBookPageError
 
 context = Context.get()
 logger = context.logger
-
-
-class LicenseStatistic(BaseModel):
-    label: str
-    version: str | None
-    percent: float
-    count: int
-    link: str
-
-
-class LicenseInfo(BaseModel):
-    statistics: list[LicenseStatistic]
-    details: list
-
-
-class PageInfo(BaseModel):
-    license_label: str
-    license_version: str
-    url: str
-    title: str
-    children: list["PageInfo"]
 
 
 def _get_licensing_report_data(cover_url: str) -> Any:
