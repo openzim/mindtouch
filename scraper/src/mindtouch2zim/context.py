@@ -4,6 +4,7 @@ import os
 import re
 import threading
 from pathlib import Path
+from typing import Any
 
 import requests
 from zimscraperlib.constants import NAME as SCRAPERLIB_NAME
@@ -64,7 +65,7 @@ class Context:
     assets_workers: int = 10
 
     # known bad assets
-    bad_assets_regex: re.Pattern = re.compile(STANDARD_KNOWN_BAD_ASSETS_REGEX)
+    bad_assets_regex: re.Pattern[str] = re.compile(STANDARD_KNOWN_BAD_ASSETS_REGEX)
 
     # maximum amount of bad assets
     bad_assets_threshold: int = 10
@@ -99,9 +100,9 @@ class Context:
     secondary_color: str = "#FFFFFF"
 
     # Content filters
-    page_title_include: re.Pattern | None = None
+    page_title_include: re.Pattern[str] | None = None
     page_id_include: list[str] | None = None
-    page_title_exclude: re.Pattern | None = None
+    page_title_exclude: re.Pattern[str] | None = None
     root_page_id: str | None = None
 
     # Maximum number of pixels of images that will be pushed to the ZIM
@@ -114,7 +115,7 @@ class Context:
     )
 
     @classmethod
-    def setup(cls, **kwargs):
+    def setup(cls, **kwargs: Any):
         new_instance = cls(**kwargs)
         if cls._instance:
             # replace values 'in-place' so that we do not change the Context object

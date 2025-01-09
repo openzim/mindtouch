@@ -316,7 +316,7 @@ def test_entrypoint_regex_args(
     prepare_context(
         ([*good_cli_args, arg_name, arg_value] if arg_name else good_cli_args), tmpdir
     )
-    regex: re.Pattern = context.__getattribute__(context_name)
+    regex: re.Pattern[str] = context.__getattribute__(context_name)
     for match in expected_match:
         assert regex.findall(match)
     for match in expected_no_match:

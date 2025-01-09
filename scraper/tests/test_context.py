@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from mindtouch2zim.context import Context
@@ -28,7 +30,7 @@ def test_context_defaults():
     assert context.current_thread_workitem == "context 123"
 
 
-def test_context_setup_again(context_defaults):
+def test_context_setup_again(context_defaults: dict[str, Any]):
     settings = context_defaults.copy()
     settings["title"] = "A title"
     Context.setup(**settings)

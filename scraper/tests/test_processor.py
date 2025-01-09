@@ -12,7 +12,7 @@ def dummy_encoded_url() -> str:
 
 
 @pytest.fixture(scope="module")
-def library_tree(dummy_encoded_url) -> LibraryTree:
+def library_tree(dummy_encoded_url: str) -> LibraryTree:
     root = LibraryPage(
         id="24", title="Home page", path="", encoded_url=dummy_encoded_url
     )

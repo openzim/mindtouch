@@ -224,5 +224,5 @@ include = ["src", "tests", "tasks.py"]
 exclude = [".env/**", ".venv/**", "src/mindtouch2zim/templates", ".hatch"]
 extraPaths = ["src"]
 pythonVersion = "3.12"
-typeCheckingMode = "basic"
+typeCheckingMode = "strict"
 disableBytesTypePromotions = true

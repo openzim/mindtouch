@@ -1,10 +1,11 @@
 import threading
+from typing import Any
 
 from zimscraperlib.download import get_session
 
 from mindtouch2zim.context import Context
 
-CONTEXT_DEFAULTS = {
+CONTEXT_DEFAULTS: dict[str, Any] = {
     "web_session": get_session(),
     "tmp_folder": None,
     "cache_folder": None,

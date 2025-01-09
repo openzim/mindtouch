@@ -178,7 +178,7 @@ def test_get_mime_type(
 ):
 
     assert (
-        processor._get_mime_type(
+        processor._get_mime_type(  # pyright: ignore[reportPrivateUsage]
             header_data=HeaderData(ident="foo", content_type=header_content_type),
             asset_url=HttpUrl(
                 "https://www.acme.com/xenolith-of-diorite.jpg?revision=1"
