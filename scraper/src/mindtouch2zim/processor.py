@@ -51,8 +51,8 @@ from mindtouch2zim.constants import (
 from mindtouch2zim.context import Context
 from mindtouch2zim.download import stream_file
 from mindtouch2zim.errors import NoIllustrationFoundError
-from mindtouch2zim.html import get_text
 from mindtouch2zim.html_rewriting import HtmlUrlsRewriter
+from mindtouch2zim.html_utils import get_text
 from mindtouch2zim.libretexts.detailed_licensing import rewrite_detailed_licensing
 from mindtouch2zim.libretexts.glossary import rewrite_glossary
 from mindtouch2zim.libretexts.index import rewrite_index
