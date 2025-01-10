@@ -159,6 +159,10 @@ class AssetProcessor:
                     content=asset_content.getvalue(),
                 )
                 break  # file found and added
+            except RuntimeError:
+                # RuntimeError exceptions comes from the libzim usually and they must be
+                # fatal errors
+                raise
             except KnownBadAssetFailedError as exc:
                 logger.debug(f"Ignoring known bad asset: {exc}")
             except Exception as exc:
