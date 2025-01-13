@@ -51,6 +51,7 @@ WEBP_OPTIONS = WebpMedium().options
 
 context = Context.get()
 logger = context.logger
+lock = threading.Lock()
 
 
 class HeaderData(NamedTuple):
@@ -154,10 +155,11 @@ class AssetProcessor:
                     kind=asset_details.kind,
                 )
                 logger.debug(f"Adding asset to {asset_path.value} in the ZIM")
-                creator.add_item_for(
-                    path="content/" + asset_path.value,
-                    content=asset_content.getvalue(),
-                )
+                with lock:
+                    creator.add_item_for(
+                        path="content/" + asset_path.value,
+                        content=asset_content.getvalue(),
+                    )
                 break  # file found and added
             except RuntimeError:
                 # RuntimeError exceptions comes from the libzim usually and they must be
