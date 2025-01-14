@@ -8,7 +8,7 @@ requires-python = ">=3.12,<3.13"
 description = "Make ZIM file from Mindtouch / Nice CXone Expert libraries"
 readme = "../README.md"
 dependencies = [
-  "zimscraperlib==5.0.0rc4",
+  "zimscraperlib==5.0.0",
   "requests==2.32.3",
   "types-requests==2.32.0.20241016",
   "kiwixstorage==0.9.0",
@@ -33,7 +33,7 @@ additional-keywords = ["mindouch", "nice", "cxone", "expert"]
 
 [project.optional-dependencies]
 scripts = ["invoke==2.2.0"]
-lint = ["black==24.10.0", "ruff==0.9.0"]
+lint = ["black==24.10.0", "ruff==0.9.1"]
 check = ["pyright==1.1.391"]
 test = ["pytest==8.3.4", "coverage==7.6.10"]
 dev = [
