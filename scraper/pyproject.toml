@@ -1,21 +1,21 @@
 [build-system]
-requires = ["hatchling", "hatch-openzim==0.2.1"]
+requires = ["hatchling", "hatch-openzim==0.2.2"]
 build-backend = "hatchling.build"
 
 [project]
 name = "mindtouch2zim"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.13,<3.14" 
 description = "Make ZIM file from Mindtouch / Nice CXone Expert libraries"
 readme = "../README.md"
 dependencies = [
-  "zimscraperlib==5.0.0",
+  "zimscraperlib==5.1.0", 
   "requests==2.32.3",
   "types-requests==2.32.0.20241016",
   "kiwixstorage==0.9.0",
-  "pydantic==2.10.5",
+  "pydantic==2.10.6",
   "schedule==1.2.2",
-  "beautifulsoup4==4.12.3",
-  "types-beautifulsoup4==4.12.0.20241020",
+  "beautifulsoup4==4.13.3",
+  "types-beautifulsoup4==4.12.0.20250204",
   "lxml==5.3.0",
   "tinycss2==1.4.0",
   "pif==0.8.2",
@@ -33,12 +33,12 @@ additional-keywords = ["mindouch", "nice", "cxone", "expert"]
 
 [project.optional-dependencies]
 scripts = ["invoke==2.2.0"]
-lint = ["black==24.10.0", "ruff==0.9.1"]
-check = ["pyright==1.1.391"]
+lint = ["black==25.1.0", "ruff==0.9.5"]
+check = ["pyright==1.1.393"]
 test = ["pytest==8.3.4", "coverage==7.6.10"]
 dev = [
-  "pre-commit==4.0.1",
-  "debugpy==1.8.11",
+  "pre-commit==4.1.0",
+  "debugpy==1.8.12",
   "mindtouch2zim[scripts]",
   "mindtouch2zim[lint]",
   "mindtouch2zim[test]",
@@ -76,7 +76,7 @@ html = "inv coverage --html --args '{args}'"
 
 [tool.hatch.envs.lint]
 template = "lint"
-python = "py312"
+python = "py313"
 skip-install = false
 features = ["scripts", "lint"]
 
@@ -97,11 +97,11 @@ all = "inv checkall --args '{args}'"
 
 [tool.black]
 line-length = 88
-target-version = ['py312']
+target-version = ['py313']
 exclude = "(src/mindtouch2zim/templates/.*|.hatch/.*)"
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 line-length = 88
 src = ["src"]
 
@@ -223,6 +223,7 @@ exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 include = ["src", "tests", "tasks.py"]
 exclude = [".env/**", ".venv/**", "src/mindtouch2zim/templates", ".hatch"]
 extraPaths = ["src"]
-pythonVersion = "3.12"
+pythonVersion = "3.13"
 typeCheckingMode = "strict"
 disableBytesTypePromotions = true
+
