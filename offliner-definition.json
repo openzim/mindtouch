@@ -96,7 +96,8 @@
       "description": "ID of the root page to include in ZIM. Only this page and its subpages will be included in the ZIM"
     },
     "illustration_url": {
-      "type": "url",
+      "type": "blob",
+      "kind": "image",
       "required": false,
       "title": "Illustration URL",
       "description": "URL to illustration to use for ZIM illustration and favicon"
