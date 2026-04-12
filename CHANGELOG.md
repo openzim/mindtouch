@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix prettier and eslint check in zimui QA CI (#145)
+
 ## [0.1.1] - 2024-01-14
 
 ### Fixed
