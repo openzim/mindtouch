@@ -66,7 +66,7 @@
       "description": "A semicolon (;) delimited list of tags to add to the ZIM."
     },
     "secondary_color": {
-      "type": "string",
+      "type": "color",
       "required": false,
       "title": "Secondary color",
       "description": "Secondary (background) color of ZIM UI. Default: '#FFFFFF'"
